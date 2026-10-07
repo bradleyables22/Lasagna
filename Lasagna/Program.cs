@@ -2,7 +2,8 @@ using Lasagna.Commands;
 using Lasagna.Helpers;
 using Spectre.Console.Cli;
 
-ConsoleUi.WriteLogo();
+if (args.Length == 0)
+    ConsoleUi.WriteLogo();
 
 var app = new CommandApp();
 

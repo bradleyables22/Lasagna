@@ -73,8 +73,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         ConsoleUi.WriteSummary(
             "Saved item",
             ("Name", manifest.Name),
-            ("Files", manifest.Files.Count.ToString()),
-            ("Storage", StorageManager.GetItemPath(manifest.Name)));
+            ("Files", manifest.Files.Count.ToString()));
 
         ConsoleUi.WriteSuccess($"Saved '{manifest.Name}'.");
         return 0;

@@ -41,6 +41,10 @@ internal sealed class RemoveCommand : LasagnaCommand<RemoveCommand.Settings>
 
         var type = isBundle ? "bundle" : "item";
 
+        if (!settings.Force && !ConsoleUi.SupportsInteractiveInput)
+            throw new InvalidOperationException(
+                "This terminal cannot accept confirmation prompts. Use --force to continue.");
+
         if (!settings.Force && !ConsoleUi.Confirm($"Remove the {type} '{settings.Name}'?"))
         {
             ConsoleUi.WriteInfo("Nothing was removed.");

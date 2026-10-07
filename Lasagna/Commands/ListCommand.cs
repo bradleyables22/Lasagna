@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
+using Lasagna.Models;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -35,30 +36,37 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
             return 0;
         }
 
-        var rows = new List<IReadOnlyList<string>>();
+        if (items.Count > 0)
+            WriteItems(items);
 
-        foreach (var item in items.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            rows.Add([
-                "item",
+        if (bundles.Count > 0)
+            WriteBundles(bundles);
+
+        return 0;
+    }
+
+    private static void WriteItems(IReadOnlyList<ItemManifest> items)
+    {
+        var rows = items
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(item => (IReadOnlyList<string>)[
                 item.Name,
                 $"{item.Files.Count} file{(item.Files.Count == 1 ? string.Empty : "s")}",
-                item.SourceNamespace ?? "-"]);
-        }
+                item.SourceNamespace ?? "-"])
+            .ToArray();
 
-        foreach (var bundle in bundles.OrderBy(bundle => bundle.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            rows.Add([
-                "bundle",
+        ConsoleUi.WriteTable("Items", ["Name", "Contents", "Namespace"], rows);
+    }
+
+    private static void WriteBundles(IReadOnlyList<BundleManifest> bundles)
+    {
+        var rows = bundles
+            .OrderBy(bundle => bundle.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(bundle => (IReadOnlyList<string>)[
                 bundle.Name,
-                $"{bundle.Items.Count} item{(bundle.Items.Count == 1 ? string.Empty : "s")}",
-                "-"]);
-        }
+                $"{bundle.Items.Count} item{(bundle.Items.Count == 1 ? string.Empty : "s")}"])
+            .ToArray();
 
-        ConsoleUi.WriteTable(
-            "Lasagna pantry",
-            ["Type", "Name", "Contents", "Namespace"],
-            rows);
-        return 0;
+        ConsoleUi.WriteTable("Bundles", ["Name", "Contents"], rows);
     }
 }

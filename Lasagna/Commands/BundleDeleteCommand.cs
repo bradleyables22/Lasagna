@@ -22,6 +22,10 @@ internal sealed class BundleDeleteCommand : LasagnaCommand<BundleDeleteCommand.S
         if (!BundleManager.Exists(settings.Name))
             throw new DirectoryNotFoundException($"Bundle '{settings.Name}' does not exist.");
 
+        if (!settings.Force && !ConsoleUi.SupportsInteractiveInput)
+            throw new InvalidOperationException(
+                "This terminal cannot accept confirmation prompts. Use --force to continue.");
+
         if (!settings.Force && !ConsoleUi.Confirm($"Delete bundle '{settings.Name}'?"))
         {
             ConsoleUi.WriteInfo("Nothing was deleted.");

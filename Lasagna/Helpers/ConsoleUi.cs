@@ -7,18 +7,22 @@ internal static class ConsoleUi
 
     public static void WriteLogo()
     {
-        WriteColored("LASAGNA", ConsoleColor.Yellow);
+        WriteBadge("LASAGNA", ConsoleColor.Black, ConsoleColor.Yellow);
         Console.WriteLine(" - file ingredients for .NET");
         Console.WriteLine();
     }
 
-    public static void WriteSuccess(string message) => WriteStatus("OK", message, ConsoleColor.Green);
+    public static void WriteSuccess(string message) =>
+        WriteStatus("OK", message, ConsoleColor.White, ConsoleColor.DarkGreen);
 
-    public static void WriteInfo(string message) => WriteStatus("INFO", message, ConsoleColor.Cyan);
+    public static void WriteInfo(string message) =>
+        WriteStatus("INFO", message, ConsoleColor.White, ConsoleColor.DarkCyan);
 
-    public static void WriteWarning(string message) => WriteStatus("WARN", message, ConsoleColor.Yellow);
+    public static void WriteWarning(string message) =>
+        WriteStatus("WARN", message, ConsoleColor.Black, ConsoleColor.DarkYellow);
 
-    public static void WriteError(string message) => WriteStatus("ERROR", message, ConsoleColor.Red);
+    public static void WriteError(string message) =>
+        WriteStatus("ERROR", message, ConsoleColor.White, ConsoleColor.DarkRed);
 
     public static void WriteSummary(string title, params (string Label, string Value)[] rows)
     {
@@ -121,24 +125,42 @@ internal static class ConsoleUi
         Console.WriteLine($"{action} {completed}/{total}: {Path.GetFileName(path)}");
     }
 
-    private static void WriteStatus(string label, string message, ConsoleColor color)
+    private static void WriteStatus(
+        string label,
+        string message,
+        ConsoleColor foreground,
+        ConsoleColor background)
     {
-        WriteColored(label, color);
+        WriteBadge(label, foreground, background);
         Console.WriteLine($" {message}");
     }
 
-    private static void WriteColored(string text, ConsoleColor color)
+    private static void WriteBadge(string text, ConsoleColor foreground, ConsoleColor background)
     {
-        if (Console.IsOutputRedirected)
+        var previousForeground = Console.ForegroundColor;
+        var previousBackground = Console.BackgroundColor;
+
+        try
+        {
+            Console.ForegroundColor = foreground;
+            Console.BackgroundColor = background;
+            Console.Write($" {text} ");
+        }
+        catch (IOException)
         {
             Console.Write(text);
-            return;
         }
-
-        var previousColor = Console.ForegroundColor;
-        Console.ForegroundColor = color;
-        Console.Write(text);
-        Console.ForegroundColor = previousColor;
+        finally
+        {
+            try
+            {
+                Console.ForegroundColor = previousForeground;
+                Console.BackgroundColor = previousBackground;
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 
     private static void WriteTableRow(IReadOnlyList<string> row, IReadOnlyList<int> widths)

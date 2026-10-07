@@ -121,7 +121,7 @@ lasagna bundle add admin-ui audit-service --destination Services
 List bundle contents:
 
 ```text
-lasagna bundle list
+lasagna bundle list admin-ui
 ```
 
 Load the complete bundle:
@@ -188,7 +188,7 @@ lasagna load card --destination Components --no-namespace-rewrite --overwrite
 
 ### `list`
 
-Display stored items and bundles in a table.
+Display stored items and bundles in separate tables.
 
 ```text
 lasagna list
@@ -196,7 +196,7 @@ lasagna list --items
 lasagna list --bundles
 ```
 
-`--items` and `--bundles` are mutually exclusive. Use plain `lasagna list` to show both.
+`--items` and `--bundles` are mutually exclusive. Use plain `lasagna list` to show both tables.
 
 ### `remove`
 
@@ -256,10 +256,17 @@ lasagna bundle create admin-ui navigation user-menu --destination Components --n
 
 #### `bundle list`
 
-List bundles, their item references, destinations, and namespace settings.
+List bundle summaries, or show the item references inside one bundle.
 
 ```text
 lasagna bundle list
+lasagna bundle list <name>
+```
+
+Use the bundle name to see each referenced item, destination, and namespace setting:
+
+```text
+lasagna bundle list admin-ui
 ```
 
 #### `bundle add`

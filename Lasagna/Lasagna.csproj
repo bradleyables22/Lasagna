@@ -9,8 +9,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>lasagna</ToolCommandName>
     <PackageId>Lasagna</PackageId>
-    <Version>0.0.3-beta</Version>
-    <Authors>Lasagna contributors</Authors>
+    <Version>0.0.4-beta</Version>
+    <Authors>Bradley Ables</Authors>
     <Description>Save and reuse individual files and file bundles in .NET projects.</Description>
     <PackageTags>dotnet-tool;dotnet;files;bundles;scaffolding</PackageTags>
     <PackageIcon>lasagna-icon.png</PackageIcon>
@@ -22,7 +22,6 @@
     <None Update="lasagna-icon.png" Pack="true" PackagePath="" />
     <None Update="README.md" Pack="true" PackagePath="" />
     <None Update="LICENSE" Pack="true" PackagePath="" />
-    <EmbeddedResource Include="lasagna-icon.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -35,6 +35,10 @@ internal sealed class ClearCommand : LasagnaCommand<ClearCommand.Settings>
 
         ConsoleUi.WriteTable("Everything in the pantry", ["Type", "Name"], rows);
 
+        if (!settings.Force && !ConsoleUi.SupportsInteractiveInput)
+            throw new InvalidOperationException(
+                "This terminal cannot accept confirmation prompts. Use --force to continue.");
+
         if (!settings.Force && !ConsoleUi.Confirm("Remove everything listed above?"))
         {
             ConsoleUi.WriteInfo("Nothing was removed.");
