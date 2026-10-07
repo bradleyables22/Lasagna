@@ -132,9 +132,11 @@ Each bundle item can carry its own destination and namespace-rewrite settings. B
 
 ## Command reference
 
+Every command also accepts `-v` or `--verbose` to show diagnostic details when it fails.
+
 ### `save`
 
-Save files or directories as a named item.
+Save one or more files or directories as a named item.
 
 ```text
 lasagna save <name> <files> [options]
@@ -142,13 +144,20 @@ lasagna save <name> <files> [options]
 
 Options:
 
-- `--source-namespace <NAMESPACE>` overrides the automatically detected source namespace.
-- `--no-companions` disables automatic Razor companion-file discovery.
-- `--verbose` shows diagnostic details if the command fails.
+- `--source-namespace <NAMESPACE>` overrides the namespace automatically detected from the source project and files.
+- `--no-companions` disables automatic Razor code-behind, CSS, and JavaScript companion discovery.
+
+The options can be combined when needed:
+
+```text
+lasagna save card Components/Card.razor --no-companions
+lasagna save card Components/Card.razor --source-namespace MyApp.Components
+lasagna save card Components/Card.razor --source-namespace MyApp.Components --no-companions
+```
 
 ### `load`
 
-Copy an item or bundle into the current project.
+Copy an item or bundle into the current working directory.
 
 ```text
 lasagna load <name> [options]
@@ -158,9 +167,22 @@ Options:
 
 - `--overwrite` replaces existing destination files.
 - `--destination <PATH>` places loaded files under a relative folder.
-- `--namespace <NAMESPACE>` specifies the target namespace.
-- `--no-namespace-rewrite` disables namespace rewriting.
-- `--verbose` shows diagnostic details if the command fails.
+- `--namespace <NAMESPACE>` specifies the target namespace instead of using the current project's namespace.
+- `--no-namespace-rewrite` copies namespaces exactly as stored.
+
+Common combinations:
+
+```text
+lasagna load card
+lasagna load card --overwrite
+lasagna load card --destination Components
+lasagna load card --destination Components --overwrite
+lasagna load card --namespace MyApp.Features
+lasagna load card --destination Components --namespace MyApp.Features --overwrite
+lasagna load card --destination Components --no-namespace-rewrite --overwrite
+```
+
+`--destination` is always relative to the current working directory. The load destination is added in front of any destination recorded in a bundle. `--namespace` only matters when namespace rewriting is enabled. `--no-namespace-rewrite` takes precedence over automatic or explicit namespace selection.
 
 ### `list`
 
@@ -172,15 +194,22 @@ lasagna list --items
 lasagna list --bundles
 ```
 
+`--items` and `--bundles` are mutually exclusive. Use plain `lasagna list` to show both.
+
 ### `remove`
 
 Remove an item or bundle. Lasagna asks for confirmation unless `--force` is used.
 
 ```text
 lasagna remove card
-lasagna remove admin-ui --bundle --force
+lasagna remove card --force
+lasagna remove card --item
 lasagna remove card --item --force
+lasagna remove admin-ui --bundle
+lasagna remove admin-ui --bundle --force
 ```
+
+If neither `--item` nor `--bundle` is supplied, Lasagna identifies the stored object automatically. The two type switches are mutually exclusive.
 
 ### `clear`
 
@@ -193,21 +222,102 @@ lasagna clear --force
 
 ### `bundle`
 
-Manage bundle manifests.
+Manage bundle manifests. A bundle command always starts with the `bundle` branch:
+
+```text
+lasagna bundle <command> [arguments] [options]
+```
+
+#### `bundle create`
+
+Create a bundle from one or more stored items.
 
 ```text
 lasagna bundle create <name> <items> [options]
-lasagna bundle list
-lasagna bundle add <bundle> <item> [options]
-lasagna bundle remove <bundle> <item> [options]
-lasagna bundle delete <name> [--force]
 ```
 
-Bundle options include:
+Options:
 
-- `--destination <PATH>` places an item under a relative folder.
+- `--destination <PATH>` places every initial item under a relative folder.
+- `--namespace <NAMESPACE>` records a target namespace for every initial item.
+- `--no-namespace-rewrite` keeps every initial item's stored namespaces unchanged when loaded.
+
+These options can be combined:
+
+```text
+lasagna bundle create admin-ui navigation user-menu
+lasagna bundle create admin-ui navigation user-menu --destination Components
+lasagna bundle create admin-ui navigation user-menu --namespace MyApp.Components
+lasagna bundle create admin-ui navigation user-menu --destination Components --namespace MyApp.Components
+lasagna bundle create admin-ui navigation user-menu --destination Components --no-namespace-rewrite
+```
+
+#### `bundle list`
+
+List bundles, their item references, destinations, and namespace settings.
+
+```text
+lasagna bundle list
+```
+
+#### `bundle add`
+
+Add one stored item reference to an existing bundle.
+
+```text
+lasagna bundle add <bundle> <item> [options]
+```
+
+Options:
+
+- `--destination <PATH>` places the item under a relative folder.
 - `--namespace <NAMESPACE>` records a target namespace for the item.
-- `--no-namespace-rewrite` keeps the item's stored namespaces unchanged.
+- `--no-namespace-rewrite` keeps the item's stored namespaces unchanged when loaded.
+
+Examples:
+
+```text
+lasagna bundle add admin-ui audit-service
+lasagna bundle add admin-ui audit-service --destination Services
+lasagna bundle add admin-ui audit-service --namespace MyApp.Services
+lasagna bundle add admin-ui audit-service --destination Services --namespace MyApp.Services
+lasagna bundle add admin-ui audit-service --destination Services --no-namespace-rewrite
+```
+
+#### `bundle remove`
+
+Remove an item reference from a bundle.
+
+```text
+lasagna bundle remove <bundle> <item> [options]
+```
+
+Options:
+
+- `--destination <PATH>` removes only the reference at that destination. This is useful when the same item appears in a bundle more than once.
+
+```text
+lasagna bundle remove admin-ui audit-service
+lasagna bundle remove admin-ui audit-service --destination Services
+```
+
+#### `bundle delete`
+
+Delete a bundle manifest. The stored items referenced by the bundle are not deleted.
+
+```text
+lasagna bundle delete <name>
+lasagna bundle delete <name> --force
+```
+
+### Namespace and bundle option rules
+
+- Source namespaces are detected while saving. `--source-namespace` is an override, not a requirement.
+- A bundle item's `--namespace` setting overrides the namespace supplied to `load` for that item.
+- `load --namespace` is used for items that do not have a bundle-specific target namespace.
+- `--no-namespace-rewrite` on `load` disables rewriting for the entire load operation, including bundles.
+- `--namespace` and `--no-namespace-rewrite` may be supplied together, but the explicit namespace has no effect while rewriting is disabled.
+- `--overwrite` is independent of namespace options and can be combined with any load destination or namespace option.
 
 ## Terminal output
 
