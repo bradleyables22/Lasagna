@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 namespace Lasagna.Helpers;
 
 internal static class DirectoryManager
@@ -102,6 +104,54 @@ internal static class DirectoryManager
         return Directory.EnumerateFiles(GetWorkingDirectory(), searchPattern, SearchOption.TopDirectoryOnly).ToArray();
     }
 
+    public static string? FindProjectFile()
+    {
+        var directory = new DirectoryInfo(GetWorkingDirectory());
+
+        while (directory is not null)
+        {
+            var projects = directory
+                .EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly)
+                .ToArray();
+
+            if (projects.Length == 1)
+                return projects[0].FullName;
+
+            if (projects.Length > 1)
+                return null;
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+
+    public static string? GetProjectNamespace()
+    {
+        var projectPath = FindProjectFile();
+
+        if (projectPath is null)
+            return null;
+
+        try
+        {
+            var document = XDocument.Load(projectPath);
+            var rootNamespace = document
+                .Descendants()
+                .FirstOrDefault(element => element.Name.LocalName == "RootNamespace")
+                ?.Value
+                .Trim();
+
+            return string.IsNullOrWhiteSpace(rootNamespace)
+                ? Path.GetFileNameWithoutExtension(projectPath)
+                : rootNamespace;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        {
+            return Path.GetFileNameWithoutExtension(projectPath);
+        }
+    }
+
     public static IReadOnlyList<string> CollectFiles(
         IEnumerable<string> paths,
         bool includeRazorCompanions = true)
@@ -132,6 +182,33 @@ internal static class DirectoryManager
         }
 
         return files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public static IReadOnlyList<string> CollectSources(
+        IEnumerable<string> paths,
+        bool includeRazorCompanions = true)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in paths)
+        {
+            var resolvedPath = GetExistingPath(path);
+
+            if (Directory.Exists(resolvedPath))
+            {
+                sources.Add(resolvedPath);
+                continue;
+            }
+
+            AddFile(sources, resolvedPath);
+
+            if (includeRazorCompanions)
+                AddRazorCompanions(sources, resolvedPath);
+        }
+
+        return sources.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public static string CopyToWorkingDirectory(string sourcePath,string destinationPath,bool overwrite = false)

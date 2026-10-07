@@ -21,9 +21,7 @@ internal static class BundleManager
         return Path.Combine(StorageManager.GetBundlesPath(), name);
     }
 
-    public static BundleManifest Create(
-        string name,
-        IEnumerable<BundleItemReference> items)
+    public static BundleManifest Create(string name,IEnumerable<BundleItemReference> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
@@ -31,10 +29,8 @@ internal static class BundleManager
         var references = NormalizeReferences(items);
 
         if (Directory.Exists(bundlePath))
-        {
             throw new IOException($"Bundle '{name}' already exists.");
-        }
-
+        
         Directory.CreateDirectory(bundlePath);
 
         var manifest = new BundleManifest
@@ -63,18 +59,13 @@ internal static class BundleManager
             JsonOptions);
 
         if (manifest is null)
-        {
-            throw new InvalidDataException(
-                $"Bundle '{name}' has an empty manifest.");
-        }
-
+            throw new InvalidDataException( $"Bundle '{name}' has an empty manifest.");
+        
         ValidateManifest(manifest, name);
         return manifest;
     }
 
-    public static BundleManifest Update(
-        string name,
-        IEnumerable<BundleItemReference> items)
+    public static BundleManifest Update(string name,IEnumerable<BundleItemReference> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
@@ -111,12 +102,7 @@ internal static class BundleManager
             .ToArray();
     }
 
-    public static BundleManifest AddItem(
-        string bundleName,
-        string itemName,
-        string destination = ".",
-        bool rewriteNamespace = true,
-        string? targetNamespace = null)
+    public static BundleManifest AddItem(string bundleName,string itemName,string destination = ".",bool rewriteNamespace = true,string? targetNamespace = null)
     {
         var manifest = Read(bundleName);
         var items = manifest.Items.ToList();
@@ -132,10 +118,7 @@ internal static class BundleManager
         return Update(bundleName, items);
     }
 
-    public static BundleManifest RemoveItem(
-        string bundleName,
-        string itemName,
-        string? destination = null)
+    public static BundleManifest RemoveItem(string bundleName,string itemName,string? destination = null)
     {
         var manifest = Read(bundleName);
         var items = manifest.Items
@@ -148,11 +131,8 @@ internal static class BundleManager
             .ToList();
 
         if (items.Count == manifest.Items.Count)
-        {
-            throw new InvalidOperationException(
-                $"Bundle '{bundleName}' does not contain item '{itemName}'.");
-        }
-
+            throw new InvalidOperationException($"Bundle '{bundleName}' does not contain item '{itemName}'.");
+        
         return Update(bundleName, items);
     }
 
@@ -161,16 +141,12 @@ internal static class BundleManager
         var bundlePath = GetBundlePath(name);
 
         if (!Directory.Exists(bundlePath))
-        {
-            throw new DirectoryNotFoundException(
-                $"Bundle '{name}' does not exist.");
-        }
-
+            throw new DirectoryNotFoundException($"Bundle '{name}' does not exist.");
+        
         return bundlePath;
     }
 
-    private static List<BundleItemReference> NormalizeReferences(
-        IEnumerable<BundleItemReference> items)
+    private static List<BundleItemReference> NormalizeReferences(IEnumerable<BundleItemReference> items)
     {
         var references = items
             .Select(item =>
@@ -202,17 +178,12 @@ internal static class BundleManager
             .FirstOrDefault(group => group.Count() > 1);
 
         if (duplicateReferences is not null)
-        {
-            throw new InvalidOperationException(
-                $"Bundle contains duplicate item reference '{duplicateReferences.Key}'.");
-        }
-
+            throw new InvalidOperationException( $"Bundle contains duplicate item reference '{duplicateReferences.Key}'.");
+        
         return references;
     }
 
-    private static void WriteManifest(
-        string bundlePath,
-        BundleManifest manifest)
+    private static void WriteManifest(string bundlePath,BundleManifest manifest)
     {
         var manifestPath = Path.Combine(bundlePath, BundleManifestFileName);
         var json = JsonSerializer.Serialize(manifest, JsonOptions);
@@ -226,21 +197,16 @@ internal static class BundleManager
         ValidateName(manifest.Name);
 
         if (!manifest.Name.Equals(expectedName, StringComparison.Ordinal))
-        {
-            throw new InvalidDataException(
-                $"Bundle manifest name '{manifest.Name}' does not match '{expectedName}'.");
-        }
-
+            throw new InvalidDataException($"Bundle manifest name '{manifest.Name}' does not match '{expectedName}'.");
+        
         NormalizeReferences(manifest.Items);
     }
 
     private static string NormalizeDestination(string destination)
     {
         if (string.IsNullOrWhiteSpace(destination) || destination == ".")
-        {
             return ".";
-        }
-
+        
         var normalized = destination
             .Replace('\\', '/')
             .Trim('/');
@@ -248,9 +214,7 @@ internal static class BundleManager
         if (Path.IsPathRooted(normalized) ||
             normalized.Split('/').Any(part => part is "" or "." or ".."))
         {
-            throw new ArgumentException(
-                "Bundle destinations must be relative paths.",
-                nameof(destination));
+            throw new ArgumentException("Bundle destinations must be relative paths.",nameof(destination));
         }
 
         return normalized;
