@@ -16,7 +16,6 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
         [CommandOption("--bundles")]
         [Description("Show bundles only.")]
         public bool BundlesOnly { get; init; }
-
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)

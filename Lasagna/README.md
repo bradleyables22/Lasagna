@@ -24,7 +24,7 @@ Command names, command options, item names, and bundle names are case-insensitiv
 Save a file as an item:
 
 ```text
-lasagna save card Components/Card.razor --source-namespace MyApp.Components
+lasagna save card Components/Card.razor
 ```
 
 List everything in the Lasagna pantry:
@@ -70,7 +70,7 @@ To save only the explicitly selected files, use:
 lasagna save card Components/Card.razor --no-companions
 ```
 
-If the files contain a namespace, record it when saving:
+Lasagna automatically detects the source namespace from the nearest project and the selected source files. You can override that detection for unusual project layouts:
 
 ```text
 lasagna save card Components/Card.razor --source-namespace MyApp.Components
@@ -83,9 +83,10 @@ Use `load` to copy an item or bundle into the current working directory:
 ```text
 lasagna load logging
 lasagna load admin-ui --overwrite
+lasagna load card --destination Components
 ```
 
-Existing files are protected by default. Use `--overwrite` when replacement is intentional.
+Loaded files go into the current working directory by default. Use `--destination` to place them under a relative folder. Existing files are protected by default; use `--overwrite` when replacement is intentional.
 
 For namespace-aware files, Lasagna can rewrite the stored namespace to the target project's namespace. Use `--namespace` to override automatic project detection:
 
@@ -141,7 +142,7 @@ lasagna save <name> <files> [options]
 
 Options:
 
-- `--source-namespace <NAMESPACE>` records the namespace used by the source files.
+- `--source-namespace <NAMESPACE>` overrides the automatically detected source namespace.
 - `--no-companions` disables automatic Razor companion-file discovery.
 - `--verbose` shows diagnostic details if the command fails.
 
@@ -156,6 +157,7 @@ lasagna load <name> [options]
 Options:
 
 - `--overwrite` replaces existing destination files.
+- `--destination <PATH>` places loaded files under a relative folder.
 - `--namespace <NAMESPACE>` specifies the target namespace.
 - `--no-namespace-rewrite` disables namespace rewriting.
 - `--verbose` shows diagnostic details if the command fails.

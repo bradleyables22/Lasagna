@@ -24,7 +24,6 @@ internal sealed class RemoveCommand : LasagnaCommand<RemoveCommand.Settings>
         [CommandOption("--force")]
         [Description("Remove without asking for confirmation.")]
         public bool Force { get; init; }
-
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)

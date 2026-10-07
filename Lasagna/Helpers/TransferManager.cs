@@ -18,7 +18,8 @@ internal sealed record TransferProgress(int Completed, int Total, string FilePat
 
 internal static class TransferManager
 {
-    public static TransferPlan BuildPlan(string name,string? targetNamespace, bool rewriteNamespace)
+    public static TransferPlan BuildPlan(
+        string name, string? targetNamespace, bool rewriteNamespace, string destination = ".")
     {
         if (BundleManager.Exists(name))
         {
@@ -28,7 +29,8 @@ internal static class TransferManager
                     item.ItemName,
                     item.Destination,
                     item.RewriteNamespace && rewriteNamespace,
-                    item.TargetNamespace ?? targetNamespace))
+                    item.TargetNamespace ?? targetNamespace,
+                    destination))
                 .ToArray();
 
             return new TransferPlan(name, true, files);
@@ -39,13 +41,13 @@ internal static class TransferManager
             return new TransferPlan(
                 name,
                 false,
-                BuildItemFiles(name, ".", rewriteNamespace, targetNamespace).ToArray());
+                BuildItemFiles(name, ".", rewriteNamespace, targetNamespace, destination).ToArray());
         }
 
         throw new DirectoryNotFoundException($"No storage item or bundle named '{name}' exists.");
     }
 
-    public static void Pull(TransferPlan plan,bool overwrite,Action<TransferProgress>? progress = null)
+    public static void Pull(TransferPlan plan, bool overwrite, Action<TransferProgress>? progress = null)
     {
         ValidatePlan(plan, overwrite);
 
@@ -63,13 +65,14 @@ internal static class TransferManager
                     file.TargetNamespace!);
 
                 if (!result.Succeeded)
-                    throw new InvalidDataException(result.Message ?? $"Could not rewrite namespace in '{file.SourcePath}'.");
-               
+                    throw new InvalidDataException(
+                        result.Message ?? $"Could not rewrite namespace in '{file.SourcePath}'.");
+
                 File.WriteAllText(file.DestinationPath, result.Content);
             }
             else
                 File.Copy(file.SourcePath, file.DestinationPath, overwrite);
-            
+
             completed++;
             progress?.Invoke(new TransferProgress(
                 completed,
@@ -78,11 +81,15 @@ internal static class TransferManager
         }
     }
 
-    private static IEnumerable<TransferFile> BuildItemFiles(string itemName,string destination,bool rewriteNamespace, string? targetNamespace)
+    private static IEnumerable<TransferFile> BuildItemFiles(
+        string itemName, string destination, bool rewriteNamespace,
+        string? targetNamespace, string loadDestination)
     {
         var manifest = StorageManager.Read(itemName);
         var itemPath = StorageManager.GetItemPath(itemName);
-        var destinationRoot = DirectoryManager.ResolvePath(destination);
+        var normalizedLoadDestination = NormalizeRelativeDestination(loadDestination);
+        var destinationRoot = DirectoryManager.ResolvePath(
+            Path.Combine(normalizedLoadDestination, destination));
 
         foreach (var relativeFile in manifest.Files)
         {
@@ -99,6 +106,28 @@ internal static class TransferManager
         }
     }
 
+    private static string NormalizeRelativeDestination(string destination)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destination);
+
+        if (destination == ".")
+            return destination;
+
+        var normalized = destination
+            .Replace('\\', '/')
+            .Trim('/');
+
+        if (Path.IsPathRooted(normalized) ||
+            normalized.Split('/').Any(part => part is "" or "." or ".."))
+        {
+            throw new ArgumentException(
+                "Load destinations must be relative paths inside the working directory.",
+                nameof(destination));
+        }
+
+        return normalized;
+    }
+
     private static void ValidatePlan(TransferPlan plan, bool overwrite)
     {
         var duplicates = plan.Files
@@ -107,14 +136,15 @@ internal static class TransferManager
 
         if (duplicates is not null)
             throw new IOException($"Multiple files would be written to '{duplicates.Key}'.");
-        
+
         foreach (var file in plan.Files)
         {
             if (!File.Exists(file.SourcePath))
-                throw new FileNotFoundException($"Stored file '{file.SourcePath}' is missing.",file.SourcePath);
-            
+                throw new FileNotFoundException($"Stored file '{file.SourcePath}' is missing.", file.SourcePath);
+
             if (!overwrite && File.Exists(file.DestinationPath))
-                throw new IOException($"The destination '{file.DestinationPath}' already exists. Use --overwrite to replace it.");
+                throw new IOException(
+                    $"The destination '{file.DestinationPath}' already exists. Use --overwrite to replace it.");
         }
     }
 

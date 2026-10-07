@@ -19,7 +19,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         public string[] Files { get; init; } = [];
 
         [CommandOption("--source-namespace <NAMESPACE>")]
-        [Description("The namespace found in the source files.")]
+        [Description("Override the namespace automatically detected from the source project and files.")]
         public string? SourceNamespace { get; init; }
 
         [CommandOption("--no-companions")]
@@ -39,6 +39,18 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         if (files.Count == 0)
             throw new InvalidOperationException("No files were found to save.");
 
+        var sourceNamespace = settings.SourceNamespace ??
+            NamespaceDetector.Detect(
+                files,
+                DirectoryManager.GetProjectNamespace(files[0]));
+
+        if (sourceNamespace is null)
+        {
+            ConsoleUi.WriteWarning(
+                "No source namespace could be detected; stored files will load without " +
+                "namespace rewriting unless overridden.");
+        }
+
         ItemManifest? manifest = null;
 
         AnsiConsole.Status()
@@ -48,7 +60,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
                 manifest = StorageManager.Create(
                     settings.Name,
                     sources,
-                    settings.SourceNamespace);
+                    sourceNamespace);
             });
 
         ConsoleUi.WriteSummary(

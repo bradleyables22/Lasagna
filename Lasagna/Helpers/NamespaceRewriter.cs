@@ -15,7 +15,9 @@ internal enum NamespaceRewriteStatus
     ParseError
 }
 
-internal sealed record NamespaceRewriteResult(string FilePath,string Content,
+internal sealed record NamespaceRewriteResult(
+    string FilePath,
+    string Content,
     NamespaceRewriteStatus Status,
     IReadOnlyList<string> Changes,
     string? Message = null)
@@ -31,7 +33,9 @@ internal sealed record NamespaceRewriteResult(string FilePath,string Content,
 internal static class NamespaceRewriter
 {
     private static readonly Regex RazorDirectivePattern = new(
-        @"(?m)^(?<indent>[ \t]*)@(?<directive>namespace|using|inherits|implements|inject|model)\b(?<spacing>[ \t]+)(?<value>[^\r\n]*)",
+        @"(?m)^(?<indent>[ \t]*)" +
+        @"@(?<directive>namespace|using|inherits|implements|inject|model)\b" +
+        @"(?<spacing>[ \t]+)(?<value>[^\r\n]*)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     private static readonly Regex RazorCodeBlockPattern = new(
@@ -39,9 +43,7 @@ internal static class NamespaceRewriter
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public static NamespaceRewriteResult RewriteFile(
-        string filePath,
-        string sourceNamespace,
-        string targetNamespace)
+        string filePath, string sourceNamespace, string targetNamespace)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
@@ -60,9 +62,7 @@ internal static class NamespaceRewriter
     }
 
     public static IReadOnlyList<NamespaceRewriteResult> RewriteFiles(
-        IEnumerable<string> filePaths,
-        string sourceNamespace,
-        string targetNamespace)
+        IEnumerable<string> filePaths, string sourceNamespace, string targetNamespace)
     {
         ArgumentNullException.ThrowIfNull(filePaths);
 
@@ -72,10 +72,7 @@ internal static class NamespaceRewriter
     }
 
     public static NamespaceRewriteResult RewriteContent(
-        string filePath,
-        string content,
-        string sourceNamespace,
-        string targetNamespace)
+        string filePath, string content, string sourceNamespace, string targetNamespace)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(content);
@@ -104,9 +101,7 @@ internal static class NamespaceRewriter
     }
 
     private static NamespaceRewriteResult RewriteCSharp(
-        string filePath,
-        string content,
-        NamespaceMap map)
+        string filePath, string content, NamespaceMap map)
     {
         var changes = new HashSet<string>(StringComparer.Ordinal);
         var rewritten = RewriteCSharpContent(filePath, content, map, changes, out var parseError);
@@ -129,9 +124,7 @@ internal static class NamespaceRewriter
     }
 
     private static NamespaceRewriteResult RewriteRazor(
-        string filePath,
-        string content,
-        NamespaceMap map)
+        string filePath, string content, NamespaceMap map)
     {
         var changes = new HashSet<string>(StringComparer.Ordinal);
         var warnings = new List<string>();
@@ -162,9 +155,7 @@ internal static class NamespaceRewriter
     }
 
     private static string RewriteRazorDirective(
-        Match match,
-        NamespaceMap map,
-        ISet<string> changes)
+        Match match, NamespaceMap map, ISet<string> changes)
     {
         var directive = match.Groups["directive"].Value;
         var value = match.Groups["value"].Value;
@@ -175,9 +166,7 @@ internal static class NamespaceRewriter
             changes);
 
         if (rewrittenValue == value)
-        {
             return match.Value;
-        }
 
         var valueOffset = match.Groups["value"].Index - match.Index;
 
@@ -188,10 +177,7 @@ internal static class NamespaceRewriter
     }
 
     private static string RewriteRazorDirectiveValue(
-        string directive,
-        string value,
-        NamespaceMap map,
-        ISet<string> changes)
+        string directive, string value, NamespaceMap map, ISet<string> changes)
     {
         var leadingLength = value.Length - value.TrimStart().Length;
         var leading = value[..leadingLength];
@@ -222,10 +208,7 @@ internal static class NamespaceRewriter
         return leading + RewriteFirstToken(body, map, changes);
     }
 
-    private static string RewriteFirstToken(
-        string value,
-        NamespaceMap map,
-        ISet<string> changes)
+    private static string RewriteFirstToken(string value, NamespaceMap map, ISet<string> changes)
     {
         var leadingLength = value.Length - value.TrimStart().Length;
         var leading = value[..leadingLength];
@@ -238,9 +221,7 @@ internal static class NamespaceRewriter
         }
 
         if (tokenLength == 0)
-        {
             return value;
-        }
 
         var token = body[..tokenLength];
         var rewrittenToken = RewriteTextToken(token, map, changes);
@@ -248,27 +229,19 @@ internal static class NamespaceRewriter
         return leading + rewrittenToken + body[tokenLength..];
     }
 
-    private static string RewriteTextToken(
-        string token,
-        NamespaceMap map,
-        ISet<string> changes)
+    private static string RewriteTextToken(string token, NamespaceMap map, ISet<string> changes)
     {
         var rewritten = map.Rewrite(token);
 
         if (rewritten is null || rewritten == token)
-        {
             return token;
-        }
 
         changes.Add($"{token} -> {rewritten}");
         return rewritten;
     }
 
     private static string RewriteRazorCodeBlocks(
-        string content,
-        NamespaceMap map,
-        ISet<string> changes,
-        ICollection<string> warnings)
+        string content, NamespaceMap map, ISet<string> changes, ICollection<string> warnings)
     {
         var matches = RazorCodeBlockPattern
             .Matches(content)
@@ -277,9 +250,7 @@ internal static class NamespaceRewriter
             .ToArray();
 
         if (matches.Length == 0)
-        {
             return content;
-        }
 
         var rewritten = new StringBuilder(content);
 
@@ -288,9 +259,7 @@ internal static class NamespaceRewriter
             var openingBrace = content.IndexOf('{', match.Index, match.Length);
 
             if (openingBrace < 0)
-            {
                 continue;
-            }
 
             var closingBrace = FindClosingBrace(content, openingBrace);
 
@@ -324,10 +293,7 @@ internal static class NamespaceRewriter
     }
 
     private static string RewriteCSharpFragment(
-        string content,
-        NamespaceMap map,
-        ISet<string> changes,
-        out string? parseError)
+        string content, NamespaceMap map, ISet<string> changes, out string? parseError)
     {
         const string classPrefix = "class __LasagnaRazorCodeBlock\n{\n";
         const string classSuffix = "\n}";
@@ -340,9 +306,7 @@ internal static class NamespaceRewriter
             out parseError);
 
         if (parseError is not null)
-        {
             return content;
-        }
 
         if (!rewritten.StartsWith(classPrefix, StringComparison.Ordinal) ||
             !rewritten.EndsWith(classSuffix, StringComparison.Ordinal))
@@ -367,9 +331,7 @@ internal static class NamespaceRewriter
             if (state == ScannerState.LineComment)
             {
                 if (current is '\r' or '\n')
-                {
                     state = ScannerState.Normal;
-                }
 
                 continue;
             }
@@ -388,13 +350,9 @@ internal static class NamespaceRewriter
             if (state == ScannerState.String)
             {
                 if (current == '\\')
-                {
                     index++;
-                }
                 else if (current == '"')
-                {
                     state = ScannerState.Normal;
-                }
 
                 continue;
             }
@@ -404,13 +362,9 @@ internal static class NamespaceRewriter
                 if (current == '"')
                 {
                     if (next == '"')
-                    {
                         index++;
-                    }
                     else
-                    {
                         state = ScannerState.Normal;
-                    }
                 }
 
                 continue;
@@ -419,13 +373,9 @@ internal static class NamespaceRewriter
             if (state == ScannerState.Character)
             {
                 if (current == '\\')
-                {
                     index++;
-                }
                 else if (current == '\'')
-                {
                     state = ScannerState.Normal;
-                }
 
                 continue;
             }
@@ -464,24 +414,17 @@ internal static class NamespaceRewriter
             }
 
             if (current == '{')
-            {
                 depth++;
-            }
             else if (current == '}' && --depth == 0)
-            {
                 return index;
-            }
         }
 
         return -1;
     }
 
     private static string RewriteCSharpContent(
-        string filePath,
-        string content,
-        NamespaceMap map,
-        ISet<string> changes,
-        out string? parseError)
+        string filePath, string content, NamespaceMap map,
+        ISet<string> changes, out string? parseError)
     {
         var parseOptions = CSharpParseOptions.Default
             .WithLanguageVersion(LanguageVersion.Latest)
@@ -495,9 +438,7 @@ internal static class NamespaceRewriter
 
         if (errors.Length > 0)
         {
-            parseError = string.Join(
-                " ",
-                errors.Select(error => error.GetMessage()));
+            parseError = string.Join(" ", errors.Select(error => error.GetMessage()));
             return content;
         }
 
@@ -508,10 +449,7 @@ internal static class NamespaceRewriter
     }
 
     private static NamespaceRewriteResult ResultFor(
-        string filePath,
-        string original,
-        string rewritten,
-        IEnumerable<string> changes)
+        string filePath, string original, string rewritten, IEnumerable<string> changes)
     {
         var changeList = changes
             .Distinct(StringComparer.Ordinal)
@@ -529,9 +467,7 @@ internal static class NamespaceRewriter
     }
 
     private static NamespaceRewriteResult NotApplicable(
-        string filePath,
-        string content,
-        string message)
+        string filePath, string content, string message)
     {
         return new NamespaceRewriteResult(
             filePath,
@@ -542,9 +478,7 @@ internal static class NamespaceRewriter
     }
 
     private static NamespaceRewriteResult Unsupported(
-        string filePath,
-        string content,
-        string message)
+        string filePath, string content, string message)
     {
         return new NamespaceRewriteResult(
             filePath,
@@ -568,16 +502,13 @@ internal static class NamespaceRewriter
         private readonly NamespaceMap _map;
         private readonly ISet<string> _changes;
 
-        public CSharpNamespaceSyntaxRewriter(
-            NamespaceMap map,
-            ISet<string> changes)
+        public CSharpNamespaceSyntaxRewriter(NamespaceMap map, ISet<string> changes)
         {
             _map = map;
             _changes = changes;
         }
 
-        public override SyntaxNode? VisitNamespaceDeclaration(
-            NamespaceDeclarationSyntax node)
+        public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
         {
             var rewritten = node.WithName(RewriteName(node.Name));
             return base.VisitNamespaceDeclaration(rewritten);
@@ -608,8 +539,7 @@ internal static class NamespaceRewriter
                 : rewritten;
         }
 
-        public override SyntaxNode? VisitAliasQualifiedName(
-            AliasQualifiedNameSyntax node)
+        public override SyntaxNode? VisitAliasQualifiedName(AliasQualifiedNameSyntax node)
         {
             var rewritten = RewriteName(node);
 
@@ -623,9 +553,7 @@ internal static class NamespaceRewriter
             var rewritten = _map.Rewrite(name.ToString());
 
             if (rewritten is null || rewritten == name.ToString())
-            {
                 return name;
-            }
 
             _changes.Add($"{name} -> {rewritten}");
 
@@ -635,13 +563,9 @@ internal static class NamespaceRewriter
         }
     }
 
-    private sealed record NamespaceMap(
-        string Source,
-        string Target)
+    private sealed record NamespaceMap(string Source, string Target)
     {
-        public static NamespaceMap Create(
-            string sourceNamespace,
-            string targetNamespace)
+        public static NamespaceMap Create(string sourceNamespace, string targetNamespace)
         {
             return new NamespaceMap(
                 Normalize(sourceNamespace, nameof(sourceNamespace)),
@@ -677,9 +601,7 @@ internal static class NamespaceRewriter
             var normalized = value.Trim();
 
             if (normalized.StartsWith("global::", StringComparison.Ordinal))
-            {
                 normalized = normalized[8..];
-            }
 
             var parts = normalized.Split('.');
 

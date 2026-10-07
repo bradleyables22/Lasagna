@@ -29,7 +29,6 @@ internal sealed class BundleCreateCommand : LasagnaCommand<BundleCreateCommand.S
         [CommandOption("--no-namespace-rewrite")]
         [Description("Keep namespaces unchanged when the bundle is loaded.")]
         public bool NoNamespaceRewrite { get; init; }
-
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)

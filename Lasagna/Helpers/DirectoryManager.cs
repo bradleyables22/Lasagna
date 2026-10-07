@@ -4,7 +4,8 @@ namespace Lasagna.Helpers;
 
 internal static class DirectoryManager
 {
-    public static string GetWorkingDirectory()=> Directory.GetCurrentDirectory();
+    public static string GetWorkingDirectory() => Directory.GetCurrentDirectory();
+
     public static string ResolvePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -18,8 +19,8 @@ internal static class DirectoryManager
         var resolvedPath = ResolvePath(path);
 
         if (!File.Exists(resolvedPath) && !Directory.Exists(resolvedPath))
-            throw new FileNotFoundException( $"The path '{path}' was not found in the working directory.", resolvedPath);
-        
+            throw new FileNotFoundException($"The path '{path}' was not found in the working directory.", resolvedPath);
+
         return resolvedPath;
     }
 
@@ -28,8 +29,8 @@ internal static class DirectoryManager
         var resolvedPath = ResolvePath(path);
 
         if (!File.Exists(resolvedPath))
-            throw new FileNotFoundException($"The file '{path}' was not found in the working directory.",resolvedPath);
-        
+            throw new FileNotFoundException($"The file '{path}' was not found in the working directory.", resolvedPath);
+
         return resolvedPath;
     }
 
@@ -39,7 +40,7 @@ internal static class DirectoryManager
 
         if (!Directory.Exists(resolvedPath))
             throw new DirectoryNotFoundException($"The directory '{path}' was not found in the working directory.");
-        
+
         return resolvedPath;
     }
 
@@ -52,21 +53,22 @@ internal static class DirectoryManager
 
         CreateParentDirectory(resolvedPath);
         File.WriteAllText(resolvedPath, contents);
+
         return resolvedPath;
     }
 
-    public static string ReadFile(string path)=> File.ReadAllText(GetFilePath(path));
+    public static string ReadFile(string path) => File.ReadAllText(GetFilePath(path));
 
-	public static string UpdateFile(string path, string contents)
+    public static string UpdateFile(string path, string contents)
     {
         var resolvedPath = GetFilePath(path);
         File.WriteAllText(resolvedPath, contents);
         return resolvedPath;
     }
 
-    public static void DeleteFile(string path)=> File.Delete(GetFilePath(path));
+    public static void DeleteFile(string path) => File.Delete(GetFilePath(path));
 
-	public static string CreateDirectory(string path)
+    public static string CreateDirectory(string path)
     {
         var resolvedPath = ResolvePath(path);
         Directory.CreateDirectory(resolvedPath);
@@ -85,7 +87,7 @@ internal static class DirectoryManager
 
         if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
             throw new IOException($"The path '{newPath}' already exists.");
-        
+
         CreateParentDirectory(destinationPath);
         Directory.Move(sourcePath, destinationPath);
         return destinationPath;
@@ -97,7 +99,7 @@ internal static class DirectoryManager
 
         if (PathsEqual(resolvedPath, GetWorkingDirectory()))
             throw new InvalidOperationException("The working directory cannot be deleted.");
-        
+
         Directory.Delete(resolvedPath, recursive);
     }
 
@@ -106,9 +108,14 @@ internal static class DirectoryManager
         return Directory.EnumerateFiles(GetWorkingDirectory(), searchPattern, SearchOption.TopDirectoryOnly).ToArray();
     }
 
-    public static string? FindProjectFile()
+    public static string? FindProjectFile(string? startPath = null)
     {
-        var directory = new DirectoryInfo(GetWorkingDirectory());
+        var resolvedStart = string.IsNullOrWhiteSpace(startPath)
+            ? GetWorkingDirectory()
+            : Path.GetFullPath(startPath);
+        var directory = File.Exists(resolvedStart)
+            ? new FileInfo(resolvedStart).Directory
+            : new DirectoryInfo(resolvedStart);
 
         while (directory is not null)
         {
@@ -128,9 +135,9 @@ internal static class DirectoryManager
         return null;
     }
 
-    public static string? GetProjectNamespace()
+    public static string? GetProjectNamespace(string? startPath = null)
     {
-        var projectPath = FindProjectFile();
+        var projectPath = FindProjectFile(startPath);
 
         if (projectPath is null)
             return null;
@@ -148,15 +155,15 @@ internal static class DirectoryManager
                 ? Path.GetFileNameWithoutExtension(projectPath)
                 : rootNamespace;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or System.Xml.XmlException)
         {
             return Path.GetFileNameWithoutExtension(projectPath);
         }
     }
 
     public static IReadOnlyList<string> CollectFiles(
-        IEnumerable<string> paths,
-        bool includeRazorCompanions = true)
+        IEnumerable<string> paths, bool includeRazorCompanions = true)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
@@ -187,8 +194,7 @@ internal static class DirectoryManager
     }
 
     public static IReadOnlyList<string> CollectSources(
-        IEnumerable<string> paths,
-        bool includeRazorCompanions = true)
+        IEnumerable<string> paths, bool includeRazorCompanions = true)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
@@ -213,18 +219,18 @@ internal static class DirectoryManager
         return sources.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    public static string CopyToWorkingDirectory(string sourcePath,string destinationPath,bool overwrite = false)
+    public static string CopyToWorkingDirectory(string sourcePath, string destinationPath, bool overwrite = false)
     {
         var source = Path.GetFullPath(sourcePath);
 
         if (!File.Exists(source))
-            throw new FileNotFoundException($"The source file '{sourcePath}' was not found.",source);
-        
+            throw new FileNotFoundException($"The source file '{sourcePath}' was not found.", source);
+
         var destination = ResolvePath(destinationPath);
 
         if (Directory.Exists(destination))
             throw new IOException($"The destination '{destinationPath}' is a directory.");
-        
+
         CreateParentDirectory(destination);
         File.Copy(source, destination, overwrite);
         return destination;
@@ -279,12 +285,12 @@ internal static class DirectoryManager
 
         if (!string.IsNullOrWhiteSpace(parent))
             Directory.CreateDirectory(parent);
-        
     }
 
     private static bool PathsEqual(string left, string right)
     {
-        return string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
+        return string.Equals(
+            Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
             Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
     }

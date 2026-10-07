@@ -64,10 +64,8 @@ internal static class StorageManager
     }
 
     public static ItemManifest Create(
-        string name,
-        IEnumerable<string> sourcePaths,
-        string? sourceNamespace = null,
-        IEnumerable<string>? entryPoints = null)
+        string name, IEnumerable<string> sourcePaths,
+        string? sourceNamespace = null, IEnumerable<string>? entryPoints = null)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
 
@@ -77,9 +75,7 @@ internal static class StorageManager
         ValidateSources(sources);
 
         if (Directory.Exists(itemPath))
-        {
             throw new IOException($"Storage item '{name}' already exists.");
-        }
 
         Directory.CreateDirectory(itemPath);
         CopySources(sources, itemPath, overwrite: false);
@@ -130,10 +126,8 @@ internal static class StorageManager
     }
 
     public static ItemManifest Update(
-        string name,
-        IEnumerable<string> sourcePaths,
-        string? sourceNamespace = null,
-        IEnumerable<string>? entryPoints = null)
+        string name, IEnumerable<string> sourcePaths,
+        string? sourceNamespace = null, IEnumerable<string>? entryPoints = null)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
 
@@ -206,9 +200,7 @@ internal static class StorageManager
     }
 
     private static ItemManifest BuildManifest(
-        string name,
-        string itemPath,
-        string? sourceNamespace,
+        string name, string itemPath, string? sourceNamespace,
         IEnumerable<string>? entryPoints)
     {
         var files = Directory
@@ -271,10 +263,7 @@ internal static class StorageManager
         }
     }
 
-    private static void CopySources(
-        IEnumerable<string> sourcePaths,
-        string destinationRoot,
-        bool overwrite)
+    private static void CopySources(IEnumerable<string> sourcePaths, string destinationRoot, bool overwrite)
     {
         foreach (var source in sourcePaths)
         {
@@ -294,10 +283,7 @@ internal static class StorageManager
         }
     }
 
-    private static void CopyDirectory(
-        string source,
-        string destination,
-        bool overwrite)
+    private static void CopyDirectory(string source, string destination, bool overwrite)
     {
         Directory.CreateDirectory(destination);
 
@@ -341,9 +327,7 @@ internal static class StorageManager
         }
     }
 
-    private static void EnsureSourcesAreOutsideStorage(
-        IEnumerable<string> sourcePaths,
-        string storagePath)
+    private static void EnsureSourcesAreOutsideStorage(IEnumerable<string> sourcePaths, string storagePath)
     {
         var normalizedStoragePath = NormalizePath(storagePath);
 
@@ -351,16 +335,12 @@ internal static class StorageManager
         {
             var normalizedSource = NormalizePath(source);
 
-            if (normalizedSource.Equals(
-                    normalizedStoragePath,
-                    StringComparison.OrdinalIgnoreCase) ||
+            if (normalizedSource.Equals(normalizedStoragePath, StringComparison.OrdinalIgnoreCase) ||
                 normalizedSource.StartsWith(
                     normalizedStoragePath + Path.DirectorySeparatorChar,
                     StringComparison.OrdinalIgnoreCase))
-            {
                 throw new InvalidOperationException(
                     "Storage sources cannot be inside the storage item being updated.");
-            }
         }
     }
 
