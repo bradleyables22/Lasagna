@@ -102,6 +102,38 @@ internal static class DirectoryManager
         return Directory.EnumerateFiles(GetWorkingDirectory(), searchPattern, SearchOption.TopDirectoryOnly).ToArray();
     }
 
+    public static IReadOnlyList<string> CollectFiles(
+        IEnumerable<string> paths,
+        bool includeRazorCompanions = true)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in paths)
+        {
+            var resolvedPath = GetExistingPath(path);
+
+            if (File.Exists(resolvedPath))
+            {
+                AddFile(files, resolvedPath);
+
+                if (includeRazorCompanions)
+                    AddRazorCompanions(files, resolvedPath);
+
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(
+                         resolvedPath,
+                         "*",
+                         SearchOption.AllDirectories))
+                AddFile(files, file);
+        }
+
+        return files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
     public static string CopyToWorkingDirectory(string sourcePath,string destinationPath,bool overwrite = false)
     {
         var source = Path.GetFullPath(sourcePath);
@@ -117,6 +149,49 @@ internal static class DirectoryManager
         CreateParentDirectory(destination);
         File.Copy(source, destination, overwrite);
         return destination;
+    }
+
+    private static void AddRazorCompanions(ISet<string> files, string selectedFile)
+    {
+        var razorFile = GetRazorFile(selectedFile);
+
+        if (razorFile is null)
+            return;
+
+        AddFileIfExists(files, razorFile);
+        AddFileIfExists(files, razorFile + ".cs");
+        AddFileIfExists(files, razorFile + ".css");
+        AddFileIfExists(files, razorFile + ".js");
+    }
+
+    private static string? GetRazorFile(string path)
+    {
+        var fileName = Path.GetFileName(path);
+
+        if (fileName.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
+            return path;
+
+        if (fileName.EndsWith(".razor.cs", StringComparison.OrdinalIgnoreCase))
+            return path[..^3];
+
+        if (fileName.EndsWith(".razor.css", StringComparison.OrdinalIgnoreCase))
+            return path[..^4];
+
+        if (fileName.EndsWith(".razor.js", StringComparison.OrdinalIgnoreCase))
+            return path[..^3];
+
+        return null;
+    }
+
+    private static void AddFile(ISet<string> files, string path)
+    {
+        files.Add(Path.GetFullPath(path));
+    }
+
+    private static void AddFileIfExists(ISet<string> files, string path)
+    {
+        if (File.Exists(path))
+            AddFile(files, path);
     }
 
     private static void CreateParentDirectory(string path)
