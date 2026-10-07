@@ -1,3 +1,4 @@
+using System.Reflection;
 using Spectre.Console;
 
 namespace Lasagna.Helpers;
@@ -6,11 +7,11 @@ internal static class ConsoleUi
 {
     public static void WriteLogo()
     {
-        var logo = new FigletText("LASAGNA")
-            .Centered()
-            .Color(Color.Red1);
+        var logo = new CanvasImage(ReadLogo())
+            .MaxWidth(24)
+            .NearestNeighborResampler();
 
-        AnsiConsole.Write(logo);
+        AnsiConsole.Write(new Align(logo, HorizontalAlignment.Center));
         AnsiConsole.Write(new Rule("[yellow]file ingredients for .NET[/]").RuleStyle("yellow"));
         AnsiConsole.WriteLine();
     }
@@ -53,5 +54,19 @@ internal static class ConsoleUi
             .Header($"[green]{Markup.Escape(title)}[/]")
             .Border(BoxBorder.Rounded)
             .BorderColor(Color.Green));
+    }
+
+    private static byte[] ReadLogo()
+    {
+        var assembly = typeof(ConsoleUi).Assembly;
+        var resourceName = assembly
+            .GetManifestResourceNames()
+            .Single(name => name.EndsWith("lasagna-icon.png", StringComparison.OrdinalIgnoreCase));
+
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException("The Lasagna logo resource could not be loaded.");
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
     }
 }

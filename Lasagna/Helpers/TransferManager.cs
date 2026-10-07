@@ -87,7 +87,7 @@ internal static class TransferManager
         foreach (var relativeFile in manifest.Files)
         {
             var relativePath = relativeFile.Replace('/', Path.DirectorySeparatorChar);
-            var sourcePath = Path.Combine(itemPath, relativePath);
+            var sourcePath = DirectoryManager.ResolvePath(Path.Combine(itemPath, relativePath));
             var destinationPath = Path.GetFullPath(Path.Combine(destinationRoot, relativePath));
 
             yield return new TransferFile(

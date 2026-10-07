@@ -50,7 +50,17 @@ internal static class StorageManager
     public static string GetItemPath(string name)
     {
         ValidateName(name, nameof(name));
-        return Path.Combine(GetItemsPath(), name);
+
+        var itemsPath = GetItemsPath();
+        var requestedPath = Path.Combine(itemsPath, name);
+
+        return Directory
+            .EnumerateDirectories(itemsPath, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(path => string.Equals(
+                Path.GetFileName(path),
+                name,
+                StringComparison.OrdinalIgnoreCase))
+            ?? requestedPath;
     }
 
     public static ItemManifest Create(
@@ -210,7 +220,7 @@ internal static class StorageManager
 
         var entries = (entryPoints ?? Array.Empty<string>())
             .Select(NormalizeManifestPath)
-            .Where(files.Contains)
+            .Where(file => files.Contains(file, StringComparer.OrdinalIgnoreCase))
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -236,7 +246,7 @@ internal static class StorageManager
     {
         ValidateName(manifest.Name, nameof(manifest.Name));
 
-        if (!manifest.Name.Equals(expectedName, StringComparison.Ordinal))
+        if (!manifest.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
                 $"Storage manifest name '{manifest.Name}' does not match '{expectedName}'.");

@@ -9,6 +9,7 @@ var app = new CommandApp();
 app.Configure(config =>
 {
     config.SetApplicationName("lasagna");
+    config.CaseSensitivity(CaseSensitivity.None);
     config.SetExceptionHandler((exception, _) =>
     {
         ConsoleUi.WriteError(exception.Message);

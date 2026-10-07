@@ -18,7 +18,17 @@ internal static class BundleManager
     public static string GetBundlePath(string name)
     {
         ValidateName(name);
-        return Path.Combine(StorageManager.GetBundlesPath(), name);
+
+        var bundlesPath = StorageManager.GetBundlesPath();
+        var requestedPath = Path.Combine(bundlesPath, name);
+
+        return Directory
+            .EnumerateDirectories(bundlesPath, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(path => string.Equals(
+                Path.GetFileName(path),
+                name,
+                StringComparison.OrdinalIgnoreCase))
+            ?? requestedPath;
     }
 
     public static BundleManifest Create(string name,IEnumerable<BundleItemReference> items)
@@ -196,7 +206,7 @@ internal static class BundleManager
     {
         ValidateName(manifest.Name);
 
-        if (!manifest.Name.Equals(expectedName, StringComparison.Ordinal))
+        if (!manifest.Name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"Bundle manifest name '{manifest.Name}' does not match '{expectedName}'.");
         
         NormalizeReferences(manifest.Items);

@@ -5,10 +5,12 @@ namespace Lasagna.Helpers;
 internal static class DirectoryManager
 {
     public static string GetWorkingDirectory()=> Directory.GetCurrentDirectory();
-	public static string ResolvePath(string path)
+    public static string ResolvePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return Path.GetFullPath(path, GetWorkingDirectory());
+
+        var fullPath = Path.GetFullPath(path, GetWorkingDirectory());
+        return ResolveExistingSegments(fullPath);
     }
 
     public static string GetExistingPath(string path)
@@ -285,5 +287,38 @@ internal static class DirectoryManager
         return string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
             Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveExistingSegments(string fullPath)
+    {
+        var root = Path.GetPathRoot(fullPath);
+
+        if (string.IsNullOrEmpty(root))
+            return fullPath;
+
+        var segments = fullPath[root.Length..]
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+        var current = root;
+
+        foreach (var segment in segments)
+        {
+            if (!Directory.Exists(current))
+            {
+                current = Path.Combine(current, segment);
+                continue;
+            }
+
+            var matchingEntry = Directory
+                .EnumerateFileSystemEntries(current)
+                .FirstOrDefault(entry => string.Equals(
+                    Path.GetFileName(entry),
+                    segment,
+                    StringComparison.OrdinalIgnoreCase));
+
+            current = matchingEntry ?? Path.Combine(current, segment);
+        }
+
+        return current;
     }
 }
