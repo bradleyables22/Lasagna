@@ -13,16 +13,16 @@ internal static class ConsoleUi
     }
 
     public static void WriteSuccess(string message) =>
-        WriteStatus("OK", message, ConsoleColor.White, ConsoleColor.DarkGreen);
+        WriteStatus(message, ConsoleColor.Green);
 
     public static void WriteInfo(string message) =>
-        WriteStatus("INFO", message, ConsoleColor.White, ConsoleColor.DarkCyan);
+        WriteStatus(message, ConsoleColor.Cyan);
 
     public static void WriteWarning(string message) =>
-        WriteStatus("WARN", message, ConsoleColor.Black, ConsoleColor.DarkYellow);
+        WriteStatus(message, ConsoleColor.Yellow);
 
     public static void WriteError(string message) =>
-        WriteStatus("ERROR", message, ConsoleColor.White, ConsoleColor.DarkRed);
+        WriteStatus(message, ConsoleColor.Red);
 
     public static void WriteSummary(string title, params (string Label, string Value)[] rows)
     {
@@ -67,17 +67,6 @@ internal static class ConsoleUi
 
         Console.WriteLine(separator);
         Console.WriteLine();
-    }
-
-    public static bool Confirm(string message)
-    {
-        if (!SupportsInteractiveInput)
-            return false;
-
-        Console.Write($"{message} [y/N] ");
-        var response = Console.ReadLine();
-        return response?.Trim().Equals("y", StringComparison.OrdinalIgnoreCase) == true ||
-               response?.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     public static IReadOnlyList<string> SelectFiles(
@@ -126,13 +115,30 @@ internal static class ConsoleUi
     }
 
     private static void WriteStatus(
-        string label,
         string message,
-        ConsoleColor foreground,
-        ConsoleColor background)
+        ConsoleColor color)
     {
-        WriteBadge(label, foreground, background);
-        Console.WriteLine($" {message}");
+        var previousForeground = Console.ForegroundColor;
+
+        try
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+        }
+        catch (IOException)
+        {
+            Console.WriteLine(message);
+        }
+        finally
+        {
+            try
+            {
+                Console.ForegroundColor = previousForeground;
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 
     private static void WriteBadge(string text, ConsoleColor foreground, ConsoleColor background)

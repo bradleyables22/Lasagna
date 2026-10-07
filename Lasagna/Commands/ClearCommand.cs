@@ -8,9 +8,6 @@ internal sealed class ClearCommand : LasagnaCommand<ClearCommand.Settings>
 {
     public sealed class Settings : LasagnaCommandSettings
     {
-        [CommandOption("--force")]
-        [Description("Clear the pantry without asking for confirmation.")]
-        public bool Force { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
@@ -34,16 +31,6 @@ internal sealed class ClearCommand : LasagnaCommand<ClearCommand.Settings>
             rows.Add(["item", item.Name]);
 
         ConsoleUi.WriteTable("Everything in the pantry", ["Type", "Name"], rows);
-
-        if (!settings.Force && !ConsoleUi.SupportsInteractiveInput)
-            throw new InvalidOperationException(
-                "This terminal cannot accept confirmation prompts. Use --force to continue.");
-
-        if (!settings.Force && !ConsoleUi.Confirm("Remove everything listed above?"))
-        {
-            ConsoleUi.WriteInfo("Nothing was removed.");
-            return 0;
-        }
 
         var completed = 0;
 

@@ -20,9 +20,6 @@ internal sealed class RemoveCommand : LasagnaCommand<RemoveCommand.Settings>
         [Description("Treat the name as a bundle.")]
         public bool Bundle { get; init; }
 
-        [CommandOption("--force")]
-        [Description("Remove without asking for confirmation.")]
-        public bool Force { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
@@ -40,16 +37,6 @@ internal sealed class RemoveCommand : LasagnaCommand<RemoveCommand.Settings>
                 $"No {(isBundle ? "bundle" : "item")} named '{settings.Name}' exists.");
 
         var type = isBundle ? "bundle" : "item";
-
-        if (!settings.Force && !ConsoleUi.SupportsInteractiveInput)
-            throw new InvalidOperationException(
-                "This terminal cannot accept confirmation prompts. Use --force to continue.");
-
-        if (!settings.Force && !ConsoleUi.Confirm($"Remove the {type} '{settings.Name}'?"))
-        {
-            ConsoleUi.WriteInfo("Nothing was removed.");
-            return 0;
-        }
 
         if (isBundle)
             BundleManager.Delete(settings.Name);

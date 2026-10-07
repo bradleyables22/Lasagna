@@ -200,26 +200,22 @@ lasagna list --bundles
 
 ### `remove`
 
-Remove an item or bundle. Lasagna asks for confirmation unless `--force` is used.
+Remove an item or bundle immediately.
 
 ```text
 lasagna remove card
-lasagna remove card --force
 lasagna remove card --item
-lasagna remove card --item --force
 lasagna remove admin-ui --bundle
-lasagna remove admin-ui --bundle --force
 ```
 
 If neither `--item` nor `--bundle` is supplied, Lasagna identifies the stored object automatically. The two type switches are mutually exclusive.
 
 ### `clear`
 
-Show and remove every stored item and bundle.
+Show and remove every stored item and bundle immediately.
 
 ```text
 lasagna clear
-lasagna clear --force
 ```
 
 ### `bundle`
@@ -316,7 +312,6 @@ Delete a bundle manifest. The stored items referenced by the bundle are not dele
 
 ```text
 lasagna bundle delete <name>
-lasagna bundle delete <name> --force
 ```
 
 ### Namespace and bundle option rules
@@ -330,4 +325,4 @@ lasagna bundle delete <name> --force
 
 ## Terminal output
 
-Lasagna uses plain, terminal-friendly output so it works in normal shells, Visual Studio's Package Manager Console, redirected output, and CI. Commands include a branded startup line, optional console colors, ASCII tables, file progress messages, and confirmation prompts for destructive operations.
+Lasagna uses plain, terminal-friendly output so it works in normal shells, Visual Studio's Package Manager Console, redirected output, and CI. Commands include a branded startup line, optional console colors, ASCII tables, file progress messages, and deterministic non-interactive destructive operations.
