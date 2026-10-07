@@ -31,7 +31,7 @@ internal abstract class LasagnaCommand<TSettings> : Command<TSettings>
             ConsoleUi.WriteError(exception.Message);
 
             if (settings.Verbose)
-                Spectre.Console.AnsiConsole.WriteException(exception);
+                Console.Error.WriteLine(exception);
 
             return 1;
         }

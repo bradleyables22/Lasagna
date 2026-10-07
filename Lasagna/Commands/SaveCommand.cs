@@ -1,7 +1,5 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
-using Lasagna.Models;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -25,7 +23,6 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         [CommandOption("--no-companions")]
         [Description("Skip the Razor companion file prompt.")]
         public bool NoCompanions { get; init; }
-
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
@@ -33,8 +30,10 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         if (settings.Files.Length == 0)
             throw new InvalidOperationException("Provide at least one file or directory to save.");
 
-        var files = DirectoryManager.CollectFiles(settings.Files, includeRazorCompanions: false);
-        var companionFiles = settings.NoCompanions
+        var files = DirectoryManager.CollectFiles(
+            settings.Files,
+            includeRazorCompanions: false);
+        IReadOnlyList<string> companionFiles = settings.NoCompanions
             ? []
             : SelectCompanions(DirectoryManager.FindRazorCompanions(settings.Files));
 
@@ -65,21 +64,15 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
                 "namespace rewriting unless overridden.");
         }
 
-        ItemManifest? manifest = null;
-
-        AnsiConsole.Status()
-            .Spinner(Spinner.Known.Dots)
-            .Start($"[yellow]Saving {Markup.Escape(settings.Name)}...[/]", _ =>
-            {
-                manifest = StorageManager.Create(
-                    settings.Name,
-                    sources,
-                    sourceNamespace);
-            });
+        ConsoleUi.WriteInfo($"Saving '{settings.Name}'...");
+        var manifest = StorageManager.Create(
+            settings.Name,
+            sources,
+            sourceNamespace);
 
         ConsoleUi.WriteSummary(
             "Saved item",
-            ("Name", manifest!.Name),
+            ("Name", manifest.Name),
             ("Files", manifest.Files.Count.ToString()),
             ("Storage", StorageManager.GetItemPath(manifest.Name)));
 
@@ -92,28 +85,9 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         if (companionFiles.Count == 0)
             return [];
 
-        if (!ConsoleUi.SupportsInteractivePrompts)
-        {
-            ConsoleUi.WriteInfo(
-                $"Including {companionFiles.Count} discovered Razor companion " +
-                $"file{(companionFiles.Count == 1 ? string.Empty : "s")}.");
-            return companionFiles;
-        }
-
-        var workingDirectory = DirectoryManager.GetWorkingDirectory();
-        var prompt = new MultiSelectionPrompt<string>()
-            .Title("Select [yellow]Razor companion files[/] to include:")
-            .InstructionsText("[grey](Press [blue]<space>[/] to toggle, [green]<enter>[/] to save)[/]")
-            .NotRequired()
-            .PageSize(10);
-
-        prompt.Converter = path => Markup.Escape(
-            Path.GetRelativePath(workingDirectory, path));
-        prompt.AddChoices(companionFiles);
-
-        foreach (var companionFile in companionFiles)
-            prompt.Select(companionFile);
-
-        return AnsiConsole.Prompt(prompt);
+        return ConsoleUi.SelectFiles(
+            "Related Razor files found. Enter file numbers to exclude:",
+            companionFiles,
+            DirectoryManager.GetWorkingDirectory());
     }
 }

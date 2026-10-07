@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -42,8 +41,7 @@ internal sealed class RemoveCommand : LasagnaCommand<RemoveCommand.Settings>
 
         var type = isBundle ? "bundle" : "item";
 
-        if (!settings.Force && !AnsiConsole.Confirm(
-                $"Remove the [red]{Markup.Escape(type)} '{Markup.Escape(settings.Name)}'[/]?"))
+        if (!settings.Force && !ConsoleUi.Confirm($"Remove the {type} '{settings.Name}'?"))
         {
             ConsoleUi.WriteInfo("Nothing was removed.");
             return 0;

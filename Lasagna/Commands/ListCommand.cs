@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -36,37 +35,30 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
             return 0;
         }
 
-        var table = new Table
-        {
-            Border = TableBorder.Rounded,
-            Title = new TableTitle("[red]Lasagna pantry[/]")
-        };
-        table.BorderColor(Color.Red1);
-
-        table.AddColumn("[yellow]Type[/]");
-        table.AddColumn("[yellow]Name[/]");
-        table.AddColumn("[yellow]Contents[/]");
-        table.AddColumn("[yellow]Namespace[/]");
+        var rows = new List<IReadOnlyList<string>>();
 
         foreach (var item in items.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
         {
-            table.AddRow(
-                "[deepskyblue1]item[/]",
-                Markup.Escape(item.Name),
+            rows.Add([
+                "item",
+                item.Name,
                 $"{item.Files.Count} file{(item.Files.Count == 1 ? string.Empty : "s")}",
-                Markup.Escape(item.SourceNamespace ?? "—"));
+                item.SourceNamespace ?? "-"]);
         }
 
         foreach (var bundle in bundles.OrderBy(bundle => bundle.Name, StringComparer.OrdinalIgnoreCase))
         {
-            table.AddRow(
-                "[mediumpurple2]bundle[/]",
-                Markup.Escape(bundle.Name),
+            rows.Add([
+                "bundle",
+                bundle.Name,
                 $"{bundle.Items.Count} item{(bundle.Items.Count == 1 ? string.Empty : "s")}",
-                "—");
+                "-"]);
         }
 
-        AnsiConsole.Write(table);
+        ConsoleUi.WriteTable(
+            "Lasagna pantry",
+            ["Type", "Name", "Contents", "Namespace"],
+            rows);
         return 0;
     }
 }

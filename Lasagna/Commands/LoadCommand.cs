@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -47,32 +46,16 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
         if (plan.Files.Count == 0)
             throw new InvalidDataException($"'{settings.Name}' does not contain any files.");
 
-        AnsiConsole.Write(new Rule(
-            $"[yellow]Pulling {(plan.IsBundle ? "bundle" : "item")} {Markup.Escape(plan.Name)}[/]"));
-
-        AnsiConsole.Progress()
-            .AutoClear(false)
-            .Columns(
-                new TaskDescriptionColumn(),
-                new ProgressBarColumn(),
-                new PercentageColumn(),
-                new RemainingTimeColumn(),
-                new SpinnerColumn())
-            .Start(progressContext =>
-            {
-                var task = progressContext.AddTask(
-                    "[green]Copying files[/]",
-                    maxValue: plan.Files.Count);
-
-                TransferManager.Pull(
-                    plan,
-                    settings.Overwrite,
-                    progress =>
-                    {
-                        task.Description = $"[green]Copying {Markup.Escape(Path.GetFileName(progress.FilePath))}[/]";
-                        task.Increment(1);
-                    });
-            });
+        ConsoleUi.WriteInfo(
+            $"Pulling {(plan.IsBundle ? "bundle" : "item")} '{plan.Name}'...");
+        TransferManager.Pull(
+            plan,
+            settings.Overwrite,
+            progress => ConsoleUi.WriteProgress(
+                "Copying",
+                progress.Completed,
+                progress.Total,
+                progress.FilePath));
 
         ConsoleUi.WriteSuccess(
             $"Pulled {plan.Files.Count} file{(plan.Files.Count == 1 ? string.Empty : "s")} " +

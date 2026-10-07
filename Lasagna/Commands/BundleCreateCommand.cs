@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
 using Lasagna.Models;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;

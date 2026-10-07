@@ -1,5 +1,4 @@
 using Lasagna.Helpers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -20,31 +19,25 @@ internal sealed class BundleListCommand : LasagnaCommand<BundleListCommand.Setti
             return 0;
         }
 
-        var table = new Table
-        {
-            Border = TableBorder.Rounded
-        };
-        table.BorderColor(Color.MediumPurple);
-        table.AddColumn("[mediumpurple2]Bundle[/]");
-        table.AddColumn("[mediumpurple2]Item[/]");
-        table.AddColumn("[mediumpurple2]Destination[/]");
-        table.AddColumn("[mediumpurple2]Rewrite namespace[/]");
-        table.AddColumn("[mediumpurple2]Target namespace[/]");
+        var rows = new List<IReadOnlyList<string>>();
 
         foreach (var bundle in bundles.OrderBy(bundle => bundle.Name, StringComparer.OrdinalIgnoreCase))
         {
             foreach (var item in bundle.Items)
             {
-                table.AddRow(
-                    Markup.Escape(bundle.Name),
-                    Markup.Escape(item.ItemName),
-                    Markup.Escape(item.Destination),
-                    item.RewriteNamespace ? "[green]yes[/]" : "[grey]no[/]",
-                    Markup.Escape(item.TargetNamespace ?? "auto"));
+                rows.Add([
+                    bundle.Name,
+                    item.ItemName,
+                    item.Destination,
+                    item.RewriteNamespace ? "yes" : "no",
+                    item.TargetNamespace ?? "auto"]);
             }
         }
 
-        AnsiConsole.Write(table);
+        ConsoleUi.WriteTable(
+            "Bundles",
+            ["Bundle", "Item", "Destination", "Rewrite namespace", "Target namespace"],
+            rows);
         return 0;
     }
 }

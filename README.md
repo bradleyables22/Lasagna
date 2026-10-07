@@ -64,7 +64,7 @@ When a Razor file is selected, Lasagna looks for related files:
 - `Component.razor.css`
 - `Component.razor.js`
 
-When related files are found, they are selected by default in a multi-select prompt. Press Space to exclude anything you do not want to save, then press Enter to continue. In non-interactive terminals, discovered companions are included automatically.
+When related files are found, Lasagna lists them with numbers and includes them by default. Enter the numbers you want to exclude, separated by commas, or press Enter to include everything. In non-interactive terminals, discovered companions are included automatically.
 
 To skip companion discovery entirely and save only the explicitly selected files, use:
 
@@ -323,4 +323,4 @@ lasagna bundle delete <name> --force
 
 ## Terminal output
 
-Lasagna uses Spectre.Console for its terminal experience. Commands include a branded startup display, colored success and error messages, tables for stored content, progress indicators for file operations, and confirmation prompts for destructive operations.
+Lasagna uses plain, terminal-friendly output so it works in normal shells, Visual Studio's Package Manager Console, redirected output, and CI. Commands include a branded startup line, optional console colors, ASCII tables, file progress messages, and confirmation prompts for destructive operations.

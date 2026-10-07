@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -23,8 +22,7 @@ internal sealed class BundleDeleteCommand : LasagnaCommand<BundleDeleteCommand.S
         if (!BundleManager.Exists(settings.Name))
             throw new DirectoryNotFoundException($"Bundle '{settings.Name}' does not exist.");
 
-        if (!settings.Force && !AnsiConsole.Confirm(
-                $"Delete bundle [red]'{Markup.Escape(settings.Name)}'[/]?"))
+        if (!settings.Force && !ConsoleUi.Confirm($"Delete bundle '{settings.Name}'?"))
         {
             ConsoleUi.WriteInfo("Nothing was deleted.");
             return 0;
