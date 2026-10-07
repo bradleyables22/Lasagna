@@ -57,14 +57,16 @@ lasagna save shared-components Components/Shared
 
 Selecting a directory preserves its folder structure inside the stored item.
 
-When a Razor file is selected, Lasagna automatically looks for its related files:
+When a Razor file is selected, Lasagna looks for related files:
 
 - `Component.razor`
 - `Component.razor.cs`
 - `Component.razor.css`
 - `Component.razor.js`
 
-To save only the explicitly selected files, use:
+When related files are found, they are selected by default in a multi-select prompt. Press Space to exclude anything you do not want to save, then press Enter to continue. In non-interactive terminals, discovered companions are included automatically.
+
+To skip companion discovery entirely and save only the explicitly selected files, use:
 
 ```text
 lasagna save card Components/Card.razor --no-companions
@@ -145,7 +147,7 @@ lasagna save <name> <files> [options]
 Options:
 
 - `--source-namespace <NAMESPACE>` overrides the namespace automatically detected from the source project and files.
-- `--no-companions` disables automatic Razor code-behind, CSS, and JavaScript companion discovery.
+- `--no-companions` skips Razor code-behind, CSS, and JavaScript companion discovery and the related-file prompt.
 
 The options can be combined when needed:
 

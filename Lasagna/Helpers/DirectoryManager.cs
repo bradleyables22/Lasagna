@@ -219,6 +219,36 @@ internal static class DirectoryManager
         return sources.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
+    public static IReadOnlyList<string> FindRazorCompanions(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var selectedPaths = paths.ToArray();
+        var selectedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var companions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in selectedPaths)
+        {
+            var resolvedPath = GetExistingPath(path);
+
+            if (File.Exists(resolvedPath))
+                selectedFiles.Add(resolvedPath);
+        }
+
+        foreach (var selectedFile in selectedFiles)
+        {
+            foreach (var companion in GetRazorCompanionPaths(selectedFile))
+            {
+                if (!selectedFiles.Contains(companion) && File.Exists(companion))
+                    companions.Add(companion);
+            }
+        }
+
+        return companions
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public static string CopyToWorkingDirectory(string sourcePath, string destinationPath, bool overwrite = false)
     {
         var source = Path.GetFullPath(sourcePath);
@@ -238,15 +268,21 @@ internal static class DirectoryManager
 
     private static void AddRazorCompanions(ISet<string> files, string selectedFile)
     {
+        foreach (var companion in GetRazorCompanionPaths(selectedFile))
+            AddFileIfExists(files, companion);
+    }
+
+    private static IEnumerable<string> GetRazorCompanionPaths(string selectedFile)
+    {
         var razorFile = GetRazorFile(selectedFile);
 
         if (razorFile is null)
-            return;
+            yield break;
 
-        AddFileIfExists(files, razorFile);
-        AddFileIfExists(files, razorFile + ".cs");
-        AddFileIfExists(files, razorFile + ".css");
-        AddFileIfExists(files, razorFile + ".js");
+        yield return razorFile;
+        yield return razorFile + ".cs";
+        yield return razorFile + ".css";
+        yield return razorFile + ".js";
     }
 
     private static string? GetRazorFile(string path)

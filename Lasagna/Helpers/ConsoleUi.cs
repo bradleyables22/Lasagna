@@ -1,39 +1,37 @@
-using System.Reflection;
 using Spectre.Console;
 
 namespace Lasagna.Helpers;
 
 internal static class ConsoleUi
 {
+    public static bool SupportsInteractivePrompts =>
+        AnsiConsole.Profile.Capabilities.Interactive &&
+        AnsiConsole.Profile.Capabilities.Unicode;
+
     public static void WriteLogo()
     {
-        var logo = new CanvasImage(ReadLogo())
-            .MaxWidth(24)
-            .NearestNeighborResampler();
-
-        AnsiConsole.Write(new Align(logo, HorizontalAlignment.Center));
-        AnsiConsole.Write(new Rule("[yellow]file ingredients for .NET[/]").RuleStyle("yellow"));
+        AnsiConsole.MarkupLine("[yellow]LASAGNA[/] - [grey]file ingredients for .NET[/]");
         AnsiConsole.WriteLine();
     }
 
     public static void WriteSuccess(string message)
     {
-        AnsiConsole.MarkupLine($"[green]✔[/] {Markup.Escape(message)}");
+        AnsiConsole.MarkupLine($"[green]OK[/] {Markup.Escape(message)}");
     }
 
     public static void WriteInfo(string message)
     {
-        AnsiConsole.MarkupLine($"[deepskyblue1]ℹ[/] {Markup.Escape(message)}");
+        AnsiConsole.MarkupLine($"[deepskyblue1]INFO[/] {Markup.Escape(message)}");
     }
 
     public static void WriteWarning(string message)
     {
-        AnsiConsole.MarkupLine($"[yellow]⚠[/] {Markup.Escape(message)}");
+        AnsiConsole.MarkupLine($"[yellow]WARN[/] {Markup.Escape(message)}");
     }
 
     public static void WriteError(string message)
     {
-        AnsiConsole.MarkupLine($"[red]✖[/] {Markup.Escape(message)}");
+        AnsiConsole.MarkupLine($"[red]ERROR[/] {Markup.Escape(message)}");
     }
 
     public static void WriteSummary(string title, params (string Label, string Value)[] rows)
@@ -56,17 +54,4 @@ internal static class ConsoleUi
             .BorderColor(Color.Green));
     }
 
-    private static byte[] ReadLogo()
-    {
-        var assembly = typeof(ConsoleUi).Assembly;
-        var resourceName = assembly
-            .GetManifestResourceNames()
-            .Single(name => name.EndsWith("lasagna-icon.png", StringComparison.OrdinalIgnoreCase));
-
-        using var stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException("The Lasagna logo resource could not be loaded.");
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
-    }
 }

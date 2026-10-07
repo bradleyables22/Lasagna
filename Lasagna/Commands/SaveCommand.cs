@@ -23,7 +23,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         public string? SourceNamespace { get; init; }
 
         [CommandOption("--no-companions")]
-        [Description("Do not automatically include Razor code-behind, CSS, or JavaScript companions.")]
+        [Description("Skip the Razor companion file prompt.")]
         public bool NoCompanions { get; init; }
 
     }
@@ -33,8 +33,22 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         if (settings.Files.Length == 0)
             throw new InvalidOperationException("Provide at least one file or directory to save.");
 
-        var files = DirectoryManager.CollectFiles(settings.Files, !settings.NoCompanions);
-        var sources = DirectoryManager.CollectSources(settings.Files, !settings.NoCompanions);
+        var files = DirectoryManager.CollectFiles(settings.Files, includeRazorCompanions: false);
+        var companionFiles = settings.NoCompanions
+            ? []
+            : SelectCompanions(DirectoryManager.FindRazorCompanions(settings.Files));
+
+        files = files
+            .Concat(companionFiles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var sources = DirectoryManager.CollectSources(
+                settings.Files,
+                includeRazorCompanions: false)
+            .Concat(companionFiles)
+            .ToArray();
 
         if (files.Count == 0)
             throw new InvalidOperationException("No files were found to save.");
@@ -71,5 +85,35 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
 
         ConsoleUi.WriteSuccess($"Saved '{manifest.Name}'.");
         return 0;
+    }
+
+    private static IReadOnlyList<string> SelectCompanions(IReadOnlyList<string> companionFiles)
+    {
+        if (companionFiles.Count == 0)
+            return [];
+
+        if (!ConsoleUi.SupportsInteractivePrompts)
+        {
+            ConsoleUi.WriteInfo(
+                $"Including {companionFiles.Count} discovered Razor companion " +
+                $"file{(companionFiles.Count == 1 ? string.Empty : "s")}.");
+            return companionFiles;
+        }
+
+        var workingDirectory = DirectoryManager.GetWorkingDirectory();
+        var prompt = new MultiSelectionPrompt<string>()
+            .Title("Select [yellow]Razor companion files[/] to include:")
+            .InstructionsText("[grey](Press [blue]<space>[/] to toggle, [green]<enter>[/] to save)[/]")
+            .NotRequired()
+            .PageSize(10);
+
+        prompt.Converter = path => Markup.Escape(
+            Path.GetRelativePath(workingDirectory, path));
+        prompt.AddChoices(companionFiles);
+
+        foreach (var companionFile in companionFiles)
+            prompt.Select(companionFile);
+
+        return AnsiConsole.Prompt(prompt);
     }
 }
