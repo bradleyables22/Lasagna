@@ -1,10 +1,137 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+namespace Lasagna.Helpers;
 
-namespace Lasagna.Helpers
+internal static class DirectoryManager
 {
-	internal class DirectoryManager
-	{
-	}
+    public static string GetWorkingDirectory()=> Directory.GetCurrentDirectory();
+	public static string ResolvePath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return Path.GetFullPath(path, GetWorkingDirectory());
+    }
+
+    public static string GetExistingPath(string path)
+    {
+        var resolvedPath = ResolvePath(path);
+
+        if (!File.Exists(resolvedPath) && !Directory.Exists(resolvedPath))
+            throw new FileNotFoundException( $"The path '{path}' was not found in the working directory.", resolvedPath);
+        
+        return resolvedPath;
+    }
+
+    public static string GetFilePath(string path)
+    {
+        var resolvedPath = ResolvePath(path);
+
+        if (!File.Exists(resolvedPath))
+            throw new FileNotFoundException($"The file '{path}' was not found in the working directory.",resolvedPath);
+        
+        return resolvedPath;
+    }
+
+    public static string GetDirectoryPath(string path = ".")
+    {
+        var resolvedPath = ResolvePath(path);
+
+        if (!Directory.Exists(resolvedPath))
+            throw new DirectoryNotFoundException($"The directory '{path}' was not found in the working directory.");
+        
+        return resolvedPath;
+    }
+
+    public static string CreateFile(string path, string contents = "")
+    {
+        var resolvedPath = ResolvePath(path);
+
+        if (File.Exists(resolvedPath) || Directory.Exists(resolvedPath))
+            throw new IOException($"The path '{path}' already exists.");
+
+        CreateParentDirectory(resolvedPath);
+        File.WriteAllText(resolvedPath, contents);
+        return resolvedPath;
+    }
+
+    public static string ReadFile(string path)=> File.ReadAllText(GetFilePath(path));
+
+	public static string UpdateFile(string path, string contents)
+    {
+        var resolvedPath = GetFilePath(path);
+        File.WriteAllText(resolvedPath, contents);
+        return resolvedPath;
+    }
+
+    public static void DeleteFile(string path)=> File.Delete(GetFilePath(path));
+
+	public static string CreateDirectory(string path)
+    {
+        var resolvedPath = ResolvePath(path);
+        Directory.CreateDirectory(resolvedPath);
+        return resolvedPath;
+    }
+
+    public static IReadOnlyList<string> ReadDirectory(string path = ".")
+    {
+        return Directory.EnumerateFileSystemEntries(GetDirectoryPath(path)).ToArray();
+    }
+
+    public static string RenameDirectory(string path, string newPath)
+    {
+        var sourcePath = GetDirectoryPath(path);
+        var destinationPath = ResolvePath(newPath);
+
+        if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+            throw new IOException($"The path '{newPath}' already exists.");
+        
+        CreateParentDirectory(destinationPath);
+        Directory.Move(sourcePath, destinationPath);
+        return destinationPath;
+    }
+
+    public static void DeleteDirectory(string path, bool recursive = false)
+    {
+        var resolvedPath = GetDirectoryPath(path);
+
+        if (PathsEqual(resolvedPath, GetWorkingDirectory()))
+            throw new InvalidOperationException("The working directory cannot be deleted.");
+        
+        Directory.Delete(resolvedPath, recursive);
+    }
+
+    public static IReadOnlyList<string> ListFiles(string searchPattern = "*")
+    {
+        return Directory.EnumerateFiles(GetWorkingDirectory(), searchPattern, SearchOption.TopDirectoryOnly).ToArray();
+    }
+
+    public static string CopyToWorkingDirectory(string sourcePath,string destinationPath,bool overwrite = false)
+    {
+        var source = Path.GetFullPath(sourcePath);
+
+        if (!File.Exists(source))
+            throw new FileNotFoundException($"The source file '{sourcePath}' was not found.",source);
+        
+        var destination = ResolvePath(destinationPath);
+
+        if (Directory.Exists(destination))
+            throw new IOException($"The destination '{destinationPath}' is a directory.");
+        
+        CreateParentDirectory(destination);
+        File.Copy(source, destination, overwrite);
+        return destination;
+    }
+
+    private static void CreateParentDirectory(string path)
+    {
+        var parent = Path.GetDirectoryName(path);
+
+        if (!string.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
+        
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        return string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
+            Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
+    }
 }
