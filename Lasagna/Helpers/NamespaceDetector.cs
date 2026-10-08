@@ -20,9 +20,9 @@ internal static class NamespaceDetector
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        if (!string.IsNullOrWhiteSpace(projectNamespace) &&
-            (declaredNamespaces.Length == 0 || declaredNamespaces.All(namespaceValue =>
-                IsNamespace(namespaceValue, projectNamespace))))
+        if (!string.IsNullOrWhiteSpace(projectNamespace) 
+            && (declaredNamespaces.Length == 0 || 
+            declaredNamespaces.All(namespaceValue => IsNamespace(namespaceValue, projectNamespace))))
         {
             return projectNamespace.Trim();
         }

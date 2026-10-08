@@ -3,32 +3,10 @@ using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Lasagna.Enums;
+using Lasagna.Models;
 
 namespace Lasagna.Helpers;
-
-internal enum NamespaceRewriteStatus
-{
-    Unchanged,
-    Rewritten,
-    NotApplicable,
-    Unsupported,
-    ParseError
-}
-
-internal sealed record NamespaceRewriteResult(
-    string FilePath,
-    string Content,
-    NamespaceRewriteStatus Status,
-    IReadOnlyList<string> Changes,
-    string? Message = null)
-{
-    public bool Changed => Status == NamespaceRewriteStatus.Rewritten;
-
-    public bool Succeeded => Status is
-        NamespaceRewriteStatus.Unchanged or
-        NamespaceRewriteStatus.Rewritten or
-        NamespaceRewriteStatus.NotApplicable;
-}
 
 internal static class NamespaceRewriter
 {
@@ -42,8 +20,7 @@ internal static class NamespaceRewriter
         @"(?m)^[ \t]*@(?<directive>code|functions)\s*\{",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    public static NamespaceRewriteResult RewriteFile(
-        string filePath, string sourceNamespace, string targetNamespace)
+    public static NamespaceRewriteResult RewriteFile(string filePath, string sourceNamespace, string targetNamespace)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
@@ -61,8 +38,7 @@ internal static class NamespaceRewriter
             targetNamespace);
     }
 
-    public static IReadOnlyList<NamespaceRewriteResult> RewriteFiles(
-        IEnumerable<string> filePaths, string sourceNamespace, string targetNamespace)
+    public static IReadOnlyList<NamespaceRewriteResult> RewriteFiles(IEnumerable<string> filePaths, string sourceNamespace, string targetNamespace)
     {
         ArgumentNullException.ThrowIfNull(filePaths);
 
@@ -71,8 +47,7 @@ internal static class NamespaceRewriter
             .ToArray();
     }
 
-    public static NamespaceRewriteResult RewriteContent(
-        string filePath, string content, string sourceNamespace, string targetNamespace)
+    public static NamespaceRewriteResult RewriteContent(string filePath, string content, string sourceNamespace, string targetNamespace)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(content);
@@ -100,8 +75,7 @@ internal static class NamespaceRewriter
         };
     }
 
-    private static NamespaceRewriteResult RewriteCSharp(
-        string filePath, string content, NamespaceMap map)
+    private static NamespaceRewriteResult RewriteCSharp(string filePath, string content, NamespaceMap map)
     {
         var changes = new HashSet<string>(StringComparer.Ordinal);
         var rewritten = RewriteCSharpContent(filePath, content, map, changes, out var parseError);
@@ -123,8 +97,7 @@ internal static class NamespaceRewriter
             changes);
     }
 
-    private static NamespaceRewriteResult RewriteRazor(
-        string filePath, string content, NamespaceMap map)
+    private static NamespaceRewriteResult RewriteRazor(string filePath, string content, NamespaceMap map)
     {
         var changes = new HashSet<string>(StringComparer.Ordinal);
         var warnings = new List<string>();
@@ -154,8 +127,7 @@ internal static class NamespaceRewriter
             : result with { Message = message };
     }
 
-    private static string RewriteRazorDirective(
-        Match match, NamespaceMap map, ISet<string> changes)
+    private static string RewriteRazorDirective(Match match, NamespaceMap map, ISet<string> changes)
     {
         var directive = match.Groups["directive"].Value;
         var value = match.Groups["value"].Value;
@@ -176,8 +148,7 @@ internal static class NamespaceRewriter
             match.Value[(valueOffset + value.Length)..]);
     }
 
-    private static string RewriteRazorDirectiveValue(
-        string directive, string value, NamespaceMap map, ISet<string> changes)
+    private static string RewriteRazorDirectiveValue(string directive, string value, NamespaceMap map, ISet<string> changes)
     {
         var leadingLength = value.Length - value.TrimStart().Length;
         var leading = value[..leadingLength];
@@ -240,8 +211,7 @@ internal static class NamespaceRewriter
         return rewritten;
     }
 
-    private static string RewriteRazorCodeBlocks(
-        string content, NamespaceMap map, ISet<string> changes, ICollection<string> warnings)
+    private static string RewriteRazorCodeBlocks(string content, NamespaceMap map, ISet<string> changes, ICollection<string> warnings)
     {
         var matches = RazorCodeBlockPattern
             .Matches(content)
@@ -292,8 +262,7 @@ internal static class NamespaceRewriter
         return rewritten.ToString();
     }
 
-    private static string RewriteCSharpFragment(
-        string content, NamespaceMap map, ISet<string> changes, out string? parseError)
+    private static string RewriteCSharpFragment(string content, NamespaceMap map, ISet<string> changes, out string? parseError)
     {
         const string classPrefix = "class __LasagnaRazorCodeBlock\n{\n";
         const string classSuffix = "\n}";
@@ -422,14 +391,14 @@ internal static class NamespaceRewriter
         return -1;
     }
 
-    private static string RewriteCSharpContent(
-        string filePath, string content, NamespaceMap map,
-        ISet<string> changes, out string? parseError)
+    private static string RewriteCSharpContent( string filePath, string content, NamespaceMap map,ISet<string> changes, out string? parseError)
     {
         var parseOptions = CSharpParseOptions.Default
             .WithLanguageVersion(LanguageVersion.Latest)
             .WithDocumentationMode(DocumentationMode.Parse);
+
         var tree = CSharpSyntaxTree.ParseText(content, parseOptions, path: filePath);
+
         var errors = tree
             .GetDiagnostics()
             .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
@@ -448,8 +417,7 @@ internal static class NamespaceRewriter
         return rewriter.Visit(root)?.ToFullString() ?? content;
     }
 
-    private static NamespaceRewriteResult ResultFor(
-        string filePath, string original, string rewritten, IEnumerable<string> changes)
+    private static NamespaceRewriteResult ResultFor(string filePath, string original, string rewritten, IEnumerable<string> changes)
     {
         var changeList = changes
             .Distinct(StringComparer.Ordinal)
@@ -466,8 +434,7 @@ internal static class NamespaceRewriter
             null);
     }
 
-    private static NamespaceRewriteResult NotApplicable(
-        string filePath, string content, string message)
+    private static NamespaceRewriteResult NotApplicable(string filePath, string content, string message)
     {
         return new NamespaceRewriteResult(
             filePath,
@@ -477,8 +444,7 @@ internal static class NamespaceRewriter
             message);
     }
 
-    private static NamespaceRewriteResult Unsupported(
-        string filePath, string content, string message)
+    private static NamespaceRewriteResult Unsupported(string filePath, string content, string message)
     {
         return new NamespaceRewriteResult(
             filePath,
@@ -561,68 +527,5 @@ internal static class NamespaceRewriter
                 .ParseName(rewritten)
                 .WithTriviaFrom(name);
         }
-    }
-
-    private sealed record NamespaceMap(string Source, string Target)
-    {
-        public static NamespaceMap Create(string sourceNamespace, string targetNamespace)
-        {
-            return new NamespaceMap(
-                Normalize(sourceNamespace, nameof(sourceNamespace)),
-                Normalize(targetNamespace, nameof(targetNamespace)));
-        }
-
-        public string? Rewrite(string value)
-        {
-            var globalPrefix = value.StartsWith(
-                "global::",
-                StringComparison.Ordinal)
-                ? "global::"
-                : string.Empty;
-            var namespaceValue = value[globalPrefix.Length..];
-
-            if (namespaceValue.Equals(Source, StringComparison.Ordinal) ||
-                namespaceValue.StartsWith(
-                    Source + ".",
-                    StringComparison.Ordinal))
-            {
-                return globalPrefix +
-                       Target +
-                       namespaceValue[Source.Length..];
-            }
-
-            return null;
-        }
-
-        private static string Normalize(string value, string parameterName)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(value);
-
-            var normalized = value.Trim();
-
-            if (normalized.StartsWith("global::", StringComparison.Ordinal))
-                normalized = normalized[8..];
-
-            var parts = normalized.Split('.');
-
-            if (parts.Any(part => !SyntaxFacts.IsValidIdentifier(part)))
-            {
-                throw new ArgumentException(
-                    $"'{value}' is not a valid C# namespace.",
-                    parameterName);
-            }
-
-            return normalized;
-        }
-    }
-
-    private enum ScannerState
-    {
-        Normal,
-        LineComment,
-        BlockComment,
-        String,
-        VerbatimString,
-        Character
     }
 }

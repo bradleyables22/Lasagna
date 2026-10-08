@@ -125,9 +125,7 @@ internal static class StorageManager
             .ToArray();
     }
 
-    public static ItemManifest Update(
-        string name, IEnumerable<string> sourcePaths,
-        string? sourceNamespace = null, IEnumerable<string>? entryPoints = null)
+    public static ItemManifest Update(string name, IEnumerable<string> sourcePaths,string? sourceNamespace = null, IEnumerable<string>? entryPoints = null)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
 
@@ -199,9 +197,7 @@ internal static class StorageManager
         return itemPath;
     }
 
-    private static ItemManifest BuildManifest(
-        string name, string itemPath, string? sourceNamespace,
-        IEnumerable<string>? entryPoints)
+    private static ItemManifest BuildManifest(string name, string itemPath, string? sourceNamespace,IEnumerable<string>? entryPoints)
     {
         var files = Directory
             .EnumerateFiles(itemPath, "*", SearchOption.AllDirectories)

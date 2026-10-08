@@ -2,24 +2,9 @@ using Lasagna.Models;
 
 namespace Lasagna.Helpers;
 
-internal sealed record TransferFile(
-    string SourcePath,
-    string DestinationPath,
-    string? SourceNamespace,
-    string? TargetNamespace,
-    bool RewriteNamespace);
-
-internal sealed record TransferPlan(
-    string Name,
-    bool IsBundle,
-    IReadOnlyList<TransferFile> Files);
-
-internal sealed record TransferProgress(int Completed, int Total, string FilePath);
-
 internal static class TransferManager
 {
-    public static TransferPlan BuildPlan(
-        string name, string? targetNamespace, bool rewriteNamespace, string destination = ".")
+    public static TransferPlan BuildPlan(string name, string? targetNamespace, bool rewriteNamespace, string destination = ".")
     {
         if (BundleManager.Exists(name))
         {
@@ -81,15 +66,12 @@ internal static class TransferManager
         }
     }
 
-    private static IEnumerable<TransferFile> BuildItemFiles(
-        string itemName, string destination, bool rewriteNamespace,
-        string? targetNamespace, string loadDestination)
+    private static IEnumerable<TransferFile> BuildItemFiles(string itemName, string destination, bool rewriteNamespace,string? targetNamespace, string loadDestination)
     {
         var manifest = StorageManager.Read(itemName);
         var itemPath = StorageManager.GetItemPath(itemName);
         var normalizedLoadDestination = NormalizeRelativeDestination(loadDestination);
-        var destinationRoot = DirectoryManager.ResolvePath(
-            Path.Combine(normalizedLoadDestination, destination));
+        var destinationRoot = DirectoryManager.ResolvePath(Path.Combine(normalizedLoadDestination, destination));
 
         foreach (var relativeFile in manifest.Files)
         {

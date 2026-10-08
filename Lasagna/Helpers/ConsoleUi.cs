@@ -35,10 +35,7 @@ internal static class ConsoleUi
         Console.WriteLine();
     }
 
-    public static void WriteTable(
-        string title,
-        IReadOnlyList<string> headers,
-        IEnumerable<IReadOnlyList<string>> rows)
+    public static void WriteTable(string title,IReadOnlyList<string> headers,IEnumerable<IReadOnlyList<string>> rows)
     {
         ArgumentNullException.ThrowIfNull(headers);
         ArgumentNullException.ThrowIfNull(rows);
@@ -46,6 +43,7 @@ internal static class ConsoleUi
         var materializedRows = rows
             .Select(row => row.ToArray())
             .ToArray();
+
         var widths = headers
             .Select((header, index) => Math.Max(
                 header.Length,
@@ -55,6 +53,7 @@ internal static class ConsoleUi
                     .DefaultIfEmpty(0)
                     .Max()))
             .ToArray();
+
         var separator = "+" + string.Join("+", widths.Select(width => new string('-', width + 2))) + "+";
 
         Console.WriteLine(title);
@@ -69,10 +68,7 @@ internal static class ConsoleUi
         Console.WriteLine();
     }
 
-    public static IReadOnlyList<string> SelectFiles(
-        string title,
-        IReadOnlyList<string> files,
-        string workingDirectory)
+    public static IReadOnlyList<string> SelectFiles(string title,IReadOnlyList<string> files,string workingDirectory)
     {
         if (files.Count == 0)
             return [];
@@ -114,9 +110,7 @@ internal static class ConsoleUi
         Console.WriteLine($"{action} {completed}/{total}: {Path.GetFileName(path)}");
     }
 
-    private static void WriteStatus(
-        string message,
-        ConsoleColor color)
+    private static void WriteStatus(string message,ConsoleColor color)
     {
         var previousForeground = Console.ForegroundColor;
 
@@ -173,6 +167,7 @@ internal static class ConsoleUi
     {
         var cells = widths
             .Select((width, index) => (index < row.Count ? row[index] : string.Empty).PadRight(width));
+
         Console.WriteLine("| " + string.Join(" | ", cells) + " |");
     }
 }

@@ -38,8 +38,7 @@ internal sealed class BundleAddCommand : LasagnaCommand<BundleAddCommand.Setting
             !settings.NoNamespaceRewrite,
             settings.TargetNamespace);
 
-        ConsoleUi.WriteSuccess(
-            $"Added '{settings.Item}' to bundle '{manifest.Name}' at '{settings.Destination}'.");
+        ConsoleUi.WriteSuccess($"Added '{settings.Item}' to bundle '{manifest.Name}' at '{settings.Destination}'.");
         return 0;
     }
 }

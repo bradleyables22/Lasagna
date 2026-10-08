@@ -37,6 +37,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         var files = DirectoryManager.CollectFiles(
             settings.Files,
             includeRazorCompanions: false);
+
         IReadOnlyList<string> companionFiles = settings.NoCompanions
             ? []
             : SelectCompanions(DirectoryManager.FindRazorCompanions(settings.Files));

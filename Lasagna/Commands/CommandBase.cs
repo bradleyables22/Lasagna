@@ -11,11 +11,9 @@ internal abstract class LasagnaCommandSettings : CommandSettings
     public bool Verbose { get; init; }
 }
 
-internal abstract class LasagnaCommand<TSettings> : Command<TSettings>
-    where TSettings : LasagnaCommandSettings
+internal abstract class LasagnaCommand<TSettings> : Command<TSettings> where TSettings : LasagnaCommandSettings
 {
-    public sealed override int Execute(
-        CommandContext context, TSettings settings, CancellationToken cancellationToken)
+    public sealed override int Execute(CommandContext context, TSettings settings, CancellationToken cancellationToken)
     {
         try
         {
