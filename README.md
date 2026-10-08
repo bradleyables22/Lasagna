@@ -148,6 +148,7 @@ Options:
 
 - `--source-namespace <NAMESPACE>` overrides the namespace automatically detected from the source project and files.
 - `--no-companions` skips Razor code-behind, CSS, and JavaScript companion discovery and the related-file prompt.
+- `--push` updates an existing stored item from the current project instead of creating a new item.
 
 The options can be combined when needed:
 
@@ -155,7 +156,10 @@ The options can be combined when needed:
 lasagna save card Components/Card.razor --no-companions
 lasagna save card Components/Card.razor --source-namespace MyApp.Components
 lasagna save card Components/Card.razor --source-namespace MyApp.Components --no-companions
+lasagna save card Components/Card.razor --push
 ```
+
+Use `--push` after editing a loaded item in another project. Other projects can pull the updated item with `load --overwrite`.
 
 ### `load`
 

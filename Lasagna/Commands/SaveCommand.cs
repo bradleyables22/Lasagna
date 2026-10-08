@@ -23,6 +23,10 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         [CommandOption("--no-companions")]
         [Description("Skip the Razor companion file prompt.")]
         public bool NoCompanions { get; init; }
+
+        [CommandOption("--push")]
+        [Description("Update an existing stored item from the current project.")]
+        public bool Push { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
@@ -64,18 +68,19 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
                 "namespace rewriting unless overridden.");
         }
 
-        ConsoleUi.WriteInfo($"Saving '{settings.Name}'...");
-        var manifest = StorageManager.Create(
-            settings.Name,
-            sources,
-            sourceNamespace);
+        ConsoleUi.WriteInfo(
+            $"{(settings.Push ? "Pushing" : "Saving")} '{settings.Name}'...");
+        var manifest = settings.Push
+            ? StorageManager.Update(settings.Name, sources, sourceNamespace)
+            : StorageManager.Create(settings.Name, sources, sourceNamespace);
 
         ConsoleUi.WriteSummary(
-            "Saved item",
+            settings.Push ? "Pushed item" : "Saved item",
             ("Name", manifest.Name),
             ("Files", manifest.Files.Count.ToString()));
 
-        ConsoleUi.WriteSuccess($"Saved '{manifest.Name}'.");
+        ConsoleUi.WriteSuccess(
+            $"{(settings.Push ? "Pushed" : "Saved")} '{manifest.Name}'.");
         return 0;
     }
 
