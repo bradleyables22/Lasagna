@@ -9,7 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>lasagna</ToolCommandName>
     <PackageId>Lasagna</PackageId>
-    <Version>0.0.6-beta</Version>
+    <Version>0.0.7-beta</Version>
     <Authors>Bradley Ables</Authors>
     <Description>Save and reuse individual files and file bundles in .NET projects.</Description>
     <PackageTags>dotnet-tool;dotnet;files;bundles;scaffolding</PackageTags>

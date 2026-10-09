@@ -21,6 +21,8 @@ app.Configure(config =>
         .WithDescription("Save files or directories as a reusable item.");
     config.AddCommand<LoadCommand>("load")
         .WithDescription("Pull an item or bundle into the current project.");
+    config.AddCommand<InspectCommand>("inspect")
+        .WithDescription("Open every file in an item or bundle in browser tabs.");
     config.AddCommand<ListCommand>("list")
         .WithDescription("List stored items and bundles in a table.");
     config.AddCommand<RemoveCommand>("remove")

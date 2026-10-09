@@ -190,6 +190,17 @@ lasagna load card --destination Components --no-namespace-rewrite --overwrite
 
 `--destination` is always relative to the current working directory. The load destination is added in front of any destination recorded in a bundle. `--namespace` only matters when namespace rewriting is enabled. `--no-namespace-rewrite` takes precedence over automatic or explicit namespace selection.
 
+### `inspect`
+
+Open every file in an item or bundle in separate browser tabs using local `file://` URLs.
+
+```text
+lasagna inspect card
+lasagna inspect admin-ui
+```
+
+Bundle destinations do not affect inspection; the command opens the stored files themselves.
+
 ### `list`
 
 Display stored items and bundles in separate tables.
