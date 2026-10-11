@@ -5,6 +5,7 @@ using Lasagna.Server.Rendering.Pages;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -34,7 +35,19 @@ internal static class LocalWebHost
 		});
 
         using var app = builder.Build();
-		app.UseStaticFiles();
+		var packagedWebRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+		var staticFileProviders = new List<IFileProvider>
+		{
+			new PhysicalFileProvider(webRoot)
+		};
+
+		if (Directory.Exists(packagedWebRoot))
+			staticFileProviders.Add(new PhysicalFileProvider(packagedWebRoot));
+
+		app.UseStaticFiles(new StaticFileOptions
+		{
+			FileProvider = new CompositeFileProvider(staticFileProviders)
+		});
 		app.UseHeimdall();
 
 		app.MapGet("/files/{item}/{**path}", (string item, string? path) =>
