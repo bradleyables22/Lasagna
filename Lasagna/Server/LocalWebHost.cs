@@ -25,7 +25,6 @@ internal static class LocalWebHost
         });
 
         builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.WebHost.UseStaticWebAssets();
         builder.Logging.ClearProviders();
 
         builder.Services.AddHeimdall(options => 
@@ -35,7 +34,6 @@ internal static class LocalWebHost
 		});
 
         using var app = builder.Build();
-		app.MapStaticAssets();
 		app.UseStaticFiles();
 		app.UseHeimdall();
 
