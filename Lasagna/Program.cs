@@ -17,18 +17,40 @@ app.Configure(config =>
         return 1;
     });
 
-    config.AddCommand<SaveCommand>("save")
-        .WithDescription("Save files or directories as a reusable item.");
     config.AddCommand<LoadCommand>("load")
         .WithDescription("Pull an item or bundle into the current project.");
-    config.AddCommand<InspectCommand>("inspect")
-        .WithDescription("Open every file in an item or bundle in browser tabs.");
     config.AddCommand<ListCommand>("list")
         .WithDescription("List stored items and bundles in a table.");
     config.AddCommand<RemoveCommand>("remove")
         .WithDescription("Remove a stored item or bundle.");
     config.AddCommand<ClearCommand>("clear")
         .WithDescription("Remove every stored item and bundle.");
+
+    config.AddBranch("browse", browse =>
+    {
+        browse.SetDescription("Browse stored content or open the local web interface.");
+        browse.AddCommand<BrowseWebCommand>("web")
+            .WithDescription("Open the local Lasagna web interface.");
+        browse.AddCommand<BrowseItemCommand>("item")
+            .WithDescription("Open every file in a stored item in browser tabs.");
+        browse.AddCommand<BrowseBundleCommand>("bundle")
+            .WithDescription("Open every file referenced by a bundle in browser tabs.");
+    });
+
+    config.AddBranch("item", item =>
+    {
+        item.SetDescription("Create and manage stored items.");
+        item.AddCommand<ItemCreateCommand>("create")
+            .WithDescription("Create a stored item from files or directories.");
+        item.AddCommand<ItemUpdateCommand>("update")
+            .WithDescription("Replace the contents of an existing item.");
+        item.AddCommand<ItemListCommand>("list")
+            .WithDescription("List the files inside a stored item.");
+        item.AddCommand<ItemAddCommand>("add")
+            .WithDescription("Add files or directories to an existing item.");
+        item.AddCommand<ItemRemoveCommand>("remove")
+            .WithDescription("Remove files or directories from an existing item.");
+    });
 
     config.AddBranch("bundle", bundle =>
     {

@@ -21,10 +21,10 @@ Command names, command options, item names, and bundle names are case-insensitiv
 
 ## Quick start
 
-Save a file as an item:
+Create an item from a file:
 
 ```text
-lasagna save card Components/Card.razor
+lasagna item create card Components/Card.razor
 ```
 
 List everything in the Lasagna pantry:
@@ -45,14 +45,14 @@ The target namespace is detected from the nearest project file when possible. Yo
 lasagna load card --namespace MyApp.Pages
 ```
 
-## Saving items
+## Creating items
 
-Use `save` with a name and one or more files or directories:
+Use `item create` with a name and one or more files or directories:
 
 ```text
-lasagna save logging Logging/LoggingService.cs
-lasagna save admin-ui Components/Admin Services/AdminService.cs
-lasagna save shared-components Components/Shared
+lasagna item create logging Logging/LoggingService.cs
+lasagna item create admin-ui Components/Admin Services/AdminService.cs
+lasagna item create shared-components Components/Shared
 ```
 
 Selecting a directory preserves its folder structure inside the stored item.
@@ -66,16 +66,16 @@ When a Razor file is selected, Lasagna looks for related files:
 
 When related files are found, Lasagna lists them with numbers and includes them by default. Enter the numbers you want to exclude, separated by commas, or press Enter to include everything. In non-interactive terminals, discovered companions are included automatically.
 
-To skip companion discovery entirely and save only the explicitly selected files, use:
+To skip companion discovery entirely and create the item from only the explicitly selected files, use:
 
 ```text
-lasagna save card Components/Card.razor --no-companions
+lasagna item create card Components/Card.razor --no-companions
 ```
 
 Lasagna automatically detects the source namespace from the nearest project and the selected source files. You can override that detection for unusual project layouts:
 
 ```text
-lasagna save card Components/Card.razor --source-namespace MyApp.Components
+lasagna item create card Components/Card.razor --source-namespace MyApp.Components
 ```
 
 ## Loading items
@@ -136,30 +136,50 @@ Each bundle item can carry its own destination and namespace-rewrite settings. B
 
 Every command also accepts `-v` or `--verbose` to show diagnostic details when it fails.
 
-### `save`
+### `item`
 
-Save one or more files or directories as a named item.
+Create or update a stored item:
 
 ```text
-lasagna save <name> <files> [options]
+lasagna item create <name> <files> [options]
+lasagna item update <name> <files> [options]
 ```
+
+`item create` creates a new item from one or more files or directories. `item update` replaces an existing item from the current project. Other projects can pull the updated item with `load --overwrite`.
 
 Options:
 
 - `--source-namespace <NAMESPACE>` overrides the namespace automatically detected from the source project and files.
 - `--no-companions` skips Razor code-behind, CSS, and JavaScript companion discovery and the related-file prompt.
-- `--push` updates an existing stored item from the current project instead of creating a new item.
 
 The options can be combined when needed:
 
 ```text
-lasagna save card Components/Card.razor --no-companions
-lasagna save card Components/Card.razor --source-namespace MyApp.Components
-lasagna save card Components/Card.razor --source-namespace MyApp.Components --no-companions
-lasagna save card Components/Card.razor --push
+lasagna item create card Components/Card.razor --no-companions
+lasagna item update card Components/Card.razor --source-namespace MyApp.Components
+lasagna item create card Components/Card.razor --source-namespace MyApp.Components --no-companions
 ```
 
-Use `--push` after editing a loaded item in another project. Other projects can pull the updated item with `load --overwrite`.
+#### File management
+
+Manage the files inside an existing stored item:
+
+```text
+lasagna item list <name>
+lasagna item add <name> <files> [options]
+lasagna item remove <name> <files>
+```
+
+`item list` shows the relative paths currently stored. `item add` reads files or directories from the current working directory and adds them to the item; Razor companions are included unless `--no-companions` is supplied. `item remove` takes relative paths inside the item and can remove a file or an entire stored directory. An item must retain at least one file.
+
+Examples:
+
+```text
+lasagna item list card
+lasagna item add card Components/ValidationMessage.razor
+lasagna item add card Components/ValidationMessage.razor --no-companions
+lasagna item remove card Components/ValidationMessage.razor
+```
 
 ### `load`
 
@@ -190,16 +210,35 @@ lasagna load card --destination Components --no-namespace-rewrite --overwrite
 
 `--destination` is always relative to the current working directory. The load destination is added in front of any destination recorded in a bundle. `--namespace` only matters when namespace rewriting is enabled. `--no-namespace-rewrite` takes precedence over automatic or explicit namespace selection.
 
-### `inspect`
+### `browse`
 
-Open every file in an item or bundle in separate browser tabs using local `file://` URLs.
+Browse stored content or open the local Lasagna web interface.
 
 ```text
-lasagna inspect card
-lasagna inspect admin-ui
+lasagna browse web
+lasagna browse item card
+lasagna browse bundle admin-ui
 ```
 
-Bundle destinations do not affect inspection; the command opens the stored files themselves.
+The item and bundle commands open stored files in separate browser tabs using local `file://` URLs. Bundle destinations do not affect browsing; the commands open the stored files themselves.
+
+`browse web` starts the local web interface and opens it in the browser.
+
+The server listens only on the local machine and keeps the command active while it runs. Stop the running command from its terminal. The interface uses the bundled Bootswatch United theme with Bootstrap 5.3 styling and JavaScript.
+
+## Browser interface
+
+The local browser interface is a dark-mode, server-rendered UI:
+
+- `/` shows the library overview.
+- `/items` creates and lists stored items.
+- `/items/<name>` manages an item's files, opens individual files, and deletes the item.
+- `/items/<name>/files/<path>` shows a read-only plain-text preview with line numbers and an option to open the raw file.
+- `/bundles` creates and lists bundles.
+- `/bundles/<name>` shows the items referenced by a bundle and allows the bundle to be deleted.
+- `/docs` contains the in-app command and workflow reference.
+
+The file preview intentionally uses readable plain text rather than full syntax highlighting. The top-bar Clear action requires confirmation before removing the local library. Form actions return server-rendered HTML and update the current page content without a client-side application shell.
 
 ### `list`
 

@@ -4,16 +4,16 @@ using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
 
-internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
+internal sealed class ItemUpdateCommand : LasagnaCommand<ItemUpdateCommand.Settings>
 {
     public sealed class Settings : LasagnaCommandSettings
     {
         [CommandArgument(0, "<name>")]
-        [Description("The name to give the stored item.")]
+        [Description("The stored item to replace.")]
         public string Name { get; init; } = string.Empty;
 
         [CommandArgument(1, "<files>")]
-        [Description("One or more files or directories to save.")]
+        [Description("One or more files or directories to replace the item with.")]
         public string[] Files { get; init; } = [];
 
         [CommandOption("--source-namespace <NAMESPACE>")]
@@ -23,16 +23,12 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
         [CommandOption("--no-companions")]
         [Description("Skip the Razor companion file prompt.")]
         public bool NoCompanions { get; init; }
-
-        [CommandOption("--push")]
-        [Description("Update an existing stored item from the current project.")]
-        public bool Push { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
     {
         if (settings.Files.Length == 0)
-            throw new InvalidOperationException("Provide at least one file or directory to save.");
+            throw new InvalidOperationException("Provide at least one file or directory to update.");
 
         var files = DirectoryManager.CollectFiles(
             settings.Files,
@@ -55,7 +51,7 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
             .ToArray();
 
         if (files.Count == 0)
-            throw new InvalidOperationException("No files were found to save.");
+            throw new InvalidOperationException("No files were found to update.");
 
         var sourceNamespace = settings.SourceNamespace ??
             NamespaceDetector.Detect(
@@ -69,19 +65,15 @@ internal sealed class SaveCommand : LasagnaCommand<SaveCommand.Settings>
                 "namespace rewriting unless overridden.");
         }
 
-        ConsoleUi.WriteInfo(
-            $"{(settings.Push ? "Pushing" : "Saving")} '{settings.Name}'...");
-        var manifest = settings.Push
-            ? StorageManager.Update(settings.Name, sources, sourceNamespace)
-            : StorageManager.Create(settings.Name, sources, sourceNamespace);
+        ConsoleUi.WriteInfo($"Updating '{settings.Name}'...");
+        var manifest = StorageManager.Update(settings.Name, sources, sourceNamespace);
 
         ConsoleUi.WriteSummary(
-            settings.Push ? "Pushed item" : "Saved item",
+            "Updated item",
             ("Name", manifest.Name),
             ("Files", manifest.Files.Count.ToString()));
 
-        ConsoleUi.WriteSuccess(
-            $"{(settings.Push ? "Pushed" : "Saved")} '{manifest.Name}'.");
+        ConsoleUi.WriteSuccess($"Updated '{manifest.Name}'.");
         return 0;
     }
 

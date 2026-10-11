@@ -1,0 +1,79 @@
+body {
+    min-height: 100vh;
+}
+
+.lasagna-brand-mark {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: url("/images/lasagna-icon.png") center / cover;
+}
+
+.lasagna-confirmation-dialog {
+    width: min(28rem, calc(100% - 2rem));
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+.lasagna-confirmation-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.lasagna-page {
+    min-height: calc(100vh - 9rem);
+}
+
+.lasagna-file-content {
+    max-height: 70vh;
+    overflow: auto;
+    font-size: 0.875rem;
+    background-color: #171a1f;
+    color: #e6edf3;
+    border-top: 1px solid #343a40;
+}
+
+.lasagna-file-content code {
+    color: inherit;
+    font-family: var(--bs-font-monospace);
+}
+
+.lasagna-file-content code [data-line="true"] {
+    display: block;
+    min-width: max-content;
+    counter-increment: file-line;
+    white-space: pre;
+}
+
+.lasagna-file-content code {
+    counter-reset: file-line;
+}
+
+.lasagna-file-content code [data-line="true"]::before {
+    display: inline-block;
+    width: 3rem;
+    margin-right: 1rem;
+    color: #8b949e;
+    content: counter(file-line);
+    text-align: right;
+    user-select: none;
+}
+
+.lasagna-file-content code [data-line="true"]:empty::after {
+    content: " ";
+}
+
+@media (max-width: 575.98px) {
+    .lasagna-page {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    .lasagna-file-content code [data-line="true"]::before {
+        width: 2rem;
+        margin-right: 0.75rem;
+    }
+}

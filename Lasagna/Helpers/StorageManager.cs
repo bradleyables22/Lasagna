@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Lasagna.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace Lasagna.Helpers;
 
@@ -125,6 +126,162 @@ internal static class StorageManager
             .ToArray();
     }
 
+    public static ItemManifest AddFiles(string name, IEnumerable<string> sourcePaths)
+    {
+        ArgumentNullException.ThrowIfNull(sourcePaths);
+
+        var itemPath = GetExistingItemPath(name);
+        var sources = sourcePaths.Select(Path.GetFullPath).ToArray();
+
+        ValidateSources(sources);
+        EnsureSourcesAreOutsideStorage(sources, itemPath);
+        CopySources(sources, itemPath, overwrite: false);
+
+        var existingManifest = Read(name);
+        var updatedManifest = BuildManifest(
+            existingManifest.Name,
+            itemPath,
+            existingManifest.SourceNamespace,
+            existingManifest.EntryPoints);
+
+        WriteManifest(itemPath, updatedManifest);
+        return updatedManifest;
+    }
+
+    public static ItemManifest AddUploadedFiles(
+        string name,
+        IEnumerable<IFormFile> uploadedFiles)
+    {
+        ArgumentNullException.ThrowIfNull(uploadedFiles);
+
+        var itemPath = GetExistingItemPath(name);
+        var existingManifest = Read(name);
+        var uploads = PrepareUploadedFiles(uploadedFiles);
+        WriteUploadedFiles(itemPath, uploads);
+
+        var updatedManifest = BuildManifest(
+            existingManifest.Name,
+            itemPath,
+            existingManifest.SourceNamespace,
+            existingManifest.EntryPoints);
+
+        WriteManifest(itemPath, updatedManifest);
+        return updatedManifest;
+    }
+
+    public static ItemManifest CreateUploadedFiles(
+        string name,
+        IEnumerable<IFormFile> uploadedFiles,
+        string? sourceNamespace = null)
+    {
+        ArgumentNullException.ThrowIfNull(uploadedFiles);
+
+        var itemPath = GetItemPath(name);
+        if (Directory.Exists(itemPath))
+            throw new IOException($"Storage item '{name}' already exists.");
+
+        var uploads = PrepareUploadedFiles(uploadedFiles);
+        Directory.CreateDirectory(itemPath);
+
+        try
+        {
+            WriteUploadedFiles(itemPath, uploads);
+
+            var manifest = BuildManifest(
+                name,
+                itemPath,
+                sourceNamespace,
+                entryPoints: null);
+            WriteManifest(itemPath, manifest);
+            return manifest;
+        }
+        catch
+        {
+            if (Directory.Exists(itemPath))
+                Directory.Delete(itemPath, recursive: true);
+
+            throw;
+        }
+    }
+
+    public static ItemManifest RemoveFiles(string name, IEnumerable<string> relativePaths)
+    {
+        ArgumentNullException.ThrowIfNull(relativePaths);
+
+        var itemPath = GetExistingItemPath(name);
+        var manifest = Read(name);
+        var manifestPath = Path.Combine(itemPath, ManifestFileName);
+        var itemRoot = Path.GetFullPath(itemPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var filesToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var relativePath in relativePaths)
+        {
+            var normalizedPath = NormalizeManifestPath(relativePath);
+            var requestedPath = Path.GetFullPath(Path.Combine(
+                itemPath,
+                normalizedPath.Replace('/', Path.DirectorySeparatorChar)));
+
+            if (!requestedPath.StartsWith(itemRoot, StringComparison.OrdinalIgnoreCase) ||
+                PathsEqual(requestedPath, manifestPath))
+            {
+                throw new ArgumentException(
+                    $"The item path '{relativePath}' is not a removable file or directory.",
+                    nameof(relativePaths));
+            }
+
+            if (File.Exists(requestedPath))
+            {
+                filesToRemove.Add(requestedPath);
+                continue;
+            }
+
+            if (Directory.Exists(requestedPath))
+            {
+                foreach (var file in Directory.EnumerateFiles(
+                             requestedPath,
+                             "*",
+                             SearchOption.AllDirectories))
+                {
+                    if (!PathsEqual(file, manifestPath))
+                        filesToRemove.Add(file);
+                }
+
+                continue;
+            }
+
+            throw new FileNotFoundException(
+                $"The item path '{relativePath}' was not found in item '{name}'.",
+                requestedPath);
+        }
+
+        if (filesToRemove.Count == 0)
+            throw new InvalidOperationException(
+                $"No files were selected for removal from item '{name}'.");
+
+        var currentFiles = ReadFiles(name);
+        if (currentFiles.Count - filesToRemove.Count < 1)
+        {
+            throw new InvalidOperationException(
+                "An item must contain at least one file. Add another file before removing the last one.");
+        }
+
+        foreach (var file in filesToRemove)
+            File.Delete(file);
+
+        RemoveEmptyDirectories(itemPath);
+
+        var updatedManifest = BuildManifest(
+            manifest.Name,
+            itemPath,
+            manifest.SourceNamespace,
+            manifest.EntryPoints);
+
+        WriteManifest(itemPath, updatedManifest);
+        return updatedManifest;
+    }
+
     public static ItemManifest Update(string name, IEnumerable<string> sourcePaths,string? sourceNamespace = null, IEnumerable<string>? entryPoints = null)
     {
         ArgumentNullException.ThrowIfNull(sourcePaths);
@@ -150,6 +307,15 @@ internal static class StorageManager
     public static void Delete(string name)
     {
         var itemPath = GetExistingItemPath(name);
+        var referencingBundles = BundleManager.FindReferencingBundles(name);
+
+        if (referencingBundles.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot delete item '{name}' because it is still used by: {string.Join(", ", referencingBundles)}. " +
+                "Remove it from those bundles first.");
+        }
+
         Directory.Delete(itemPath, recursive: true);
     }
 
@@ -323,6 +489,17 @@ internal static class StorageManager
         }
     }
 
+    private static void RemoveEmptyDirectories(string itemPath)
+    {
+        foreach (var directory in Directory
+                     .EnumerateDirectories(itemPath, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(path => path.Length))
+        {
+            if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+    }
+
     private static void EnsureSourcesAreOutsideStorage(IEnumerable<string> sourcePaths, string storagePath)
     {
         var normalizedStoragePath = NormalizePath(storagePath);
@@ -355,6 +532,103 @@ internal static class StorageManager
         }
 
         return normalized;
+    }
+
+    private static string NormalizeUploadPath(string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        var normalized = fileName.Replace('\\', '/').TrimStart('/');
+        if (Path.IsPathRooted(normalized))
+            normalized = Path.GetFileName(normalized);
+
+        normalized = NormalizeManifestPath(normalized);
+        if (normalized.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "The item manifest cannot be uploaded.",
+                nameof(fileName));
+        }
+
+        return normalized;
+    }
+
+    private static (IFormFile File, string RelativePath)[] PrepareUploadedFiles(
+        IEnumerable<IFormFile> uploadedFiles)
+    {
+        var uploads = uploadedFiles
+            .Select(file => (File: file, RelativePath: NormalizeUploadPath(file.FileName)))
+            .ToArray();
+
+        if (uploads.Length == 0)
+            throw new InvalidOperationException("Choose at least one file.");
+
+        var duplicatePath = uploads
+            .GroupBy(upload => upload.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicatePath is not null)
+        {
+            throw new InvalidOperationException(
+                $"The upload contains the file '{duplicatePath.Key}' more than once.");
+        }
+
+        return uploads;
+    }
+
+    private static void WriteUploadedFiles(
+        string itemPath,
+        IReadOnlyList<(IFormFile File, string RelativePath)> uploads)
+    {
+        var destinations = uploads
+            .Select(upload => (
+                upload.File,
+                upload.RelativePath,
+                FullPath: Path.Combine(
+                    itemPath,
+                    upload.RelativePath.Replace('/', Path.DirectorySeparatorChar))))
+            .ToArray();
+        var uploadPaths = destinations
+            .Select(destination => destination.RelativePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var destination in destinations)
+        {
+            if (File.Exists(destination.FullPath) ||
+                Directory.Exists(destination.FullPath))
+            {
+                throw new IOException(
+                    $"The item already contains '{destination.RelativePath}'.");
+            }
+
+            var segments = destination.RelativePath.Split('/');
+            var parentPath = itemPath;
+            for (var index = 0; index < segments.Length - 1; index++)
+            {
+                parentPath = Path.Combine(parentPath, segments[index]);
+                var relativeParent = string.Join('/', segments.Take(index + 1));
+
+                if (uploadPaths.Contains(relativeParent) || File.Exists(parentPath))
+                {
+                    throw new IOException(
+                        $"The item cannot create the folder for '{destination.RelativePath}'.");
+                }
+            }
+        }
+
+        foreach (var destination in destinations)
+        {
+            var parent = Path.GetDirectoryName(destination.FullPath);
+            if (parent is not null)
+                Directory.CreateDirectory(parent);
+
+            using var output = new FileStream(
+                destination.FullPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None);
+            destination.File.CopyTo(output);
+        }
     }
 
     private static string ToManifestPath(string path)

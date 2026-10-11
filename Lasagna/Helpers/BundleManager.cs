@@ -112,6 +112,18 @@ internal static class BundleManager
             .ToArray();
     }
 
+    public static IReadOnlyList<string> FindReferencingBundles(string itemName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+
+        return List()
+            .Where(bundle => bundle.Items.Any(reference =>
+                reference.ItemName.Equals(itemName, StringComparison.OrdinalIgnoreCase)))
+            .Select(bundle => bundle.Name)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public static BundleManifest AddItem(
         string bundleName, string itemName, string destination = ".",
         bool rewriteNamespace = true, string? targetNamespace = null)

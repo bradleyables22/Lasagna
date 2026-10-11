@@ -32,7 +32,7 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
 
         if (items.Count == 0 && bundles.Count == 0)
         {
-            ConsoleUi.WriteInfo("No stored items or bundles yet. Use 'lasagna save' to add one.");
+            ConsoleUi.WriteInfo("No stored items or bundles yet. Use 'lasagna item create' to add one.");
             return 0;
         }
 
