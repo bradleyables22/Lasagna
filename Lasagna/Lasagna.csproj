@@ -10,7 +10,7 @@
     <IsPackable>true</IsPackable>
     <ToolCommandName>lasagna</ToolCommandName>
     <PackageId>Lasagna</PackageId>
-    <Version>0.0.9-beta</Version>
+    <Version>0.1.1-beta</Version>
     <Authors>Bradley Ables</Authors>
     <Description>Save and reuse individual files and file bundles in .NET projects.</Description>
     <PackageProjectUrl>https://github.com/bradleyables22/Lasagna</PackageProjectUrl>

@@ -54,7 +54,7 @@ internal static class BundleCreationForm
                 .Attr("data-require-one", "[data-bundle-item]")
                 .Attr("data-validation-message", "Choose at least one stored item.")
                 .Heimdall(heimdall => heimdall
-                    .Submit("bundles.create")
+                    .OnSubmit("bundles.create")
                     .PayloadFromClosestForm()
                     .Target("#app")
                     .SwapInner()

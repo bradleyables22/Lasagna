@@ -57,7 +57,7 @@ internal static class ItemCreationForm
                 .Attr("data-require-one", "[data-upload-input]")
                 .Attr("data-validation-message", "Choose at least one file or folder.")
                 .Heimdall(heimdall => heimdall
-                    .Submit("items.create")
+                    .OnSubmit("items.create")
                     .PayloadFromClosestForm()
                     .Target("#app")
                     .SwapInner()

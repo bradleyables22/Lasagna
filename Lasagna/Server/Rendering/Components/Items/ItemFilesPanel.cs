@@ -46,7 +46,7 @@ internal static class ItemFilesPanel
                                 .Attr("data-require-one", "[data-upload-input]")
                                 .Attr("data-validation-message", "Choose at least one file or folder.")
                                 .Heimdall(heimdall => heimdall
-                                    .Submit("item.files.add")
+                                    .OnSubmit("item.files.add")
                                     .PayloadFromClosestForm()
                                     .Target("#app")
                                     .SwapInner()
