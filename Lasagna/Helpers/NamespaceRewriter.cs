@@ -514,6 +514,26 @@ internal static class NamespaceRewriter
                 : rewritten;
         }
 
+        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+        {
+            var rewritten = _map.Rewrite(node.ToString());
+
+            if (rewritten is not null && rewritten != node.ToString())
+            {
+                _changes.Add($"{node} -> {rewritten}");
+
+                var parsed = SyntaxFactory
+                    .ParseExpression(rewritten)
+                    .WithTriviaFrom(node);
+
+                return parsed is MemberAccessExpressionSyntax memberAccess
+                    ? base.VisitMemberAccessExpression(memberAccess)
+                    : parsed;
+            }
+
+            return base.VisitMemberAccessExpression(node);
+        }
+
         private NameSyntax RewriteName(NameSyntax name)
         {
             var rewritten = _map.Rewrite(name.ToString());

@@ -8,6 +8,9 @@ internal static class PageLinks
     public static string Bundle(string name)
         => $"/bundles/{Uri.EscapeDataString(name)}";
 
+    public static string Kit(string name)
+        => $"/kits/{Uri.EscapeDataString(name)}";
+
     public static string File(string itemName, string relativePath)
     {
         var segments = relativePath
@@ -24,5 +27,23 @@ internal static class PageLinks
             .Select(Uri.EscapeDataString);
 
         return $"/files/{Uri.EscapeDataString(itemName)}/{string.Join("/", segments)}";
+    }
+
+    public static string KitFile(string kitName, string relativePath)
+    {
+        var segments = relativePath
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString);
+
+        return $"/kits/{Uri.EscapeDataString(kitName)}/files/{string.Join("/", segments)}";
+    }
+
+    public static string RawKitFile(string kitName, string relativePath)
+    {
+        var segments = relativePath
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString);
+
+        return $"/files/kit/{Uri.EscapeDataString(kitName)}/{string.Join("/", segments)}";
     }
 }

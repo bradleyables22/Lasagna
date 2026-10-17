@@ -12,6 +12,7 @@ public static class CatalogPage
     {
         public const string DeleteItem = "catalog.item.delete";
         public const string DeleteBundle = "catalog.bundle.delete";
+        public const string DeleteKit = "catalog.kit.delete";
         public const string Clear = "catalog.clear";
     }
 
@@ -19,6 +20,7 @@ public static class CatalogPage
     {
         var itemCount = StorageManager.List().Count;
         var bundleCount = BundleManager.List().Count;
+        var kitCount = KitManager.List().Count;
 
         return FluentHtml.Main(main =>
         {
@@ -30,7 +32,7 @@ public static class CatalogPage
                 header.Class("mb-5")
                     .H1(h1 => h1.Class("display-4", "fw-semibold", "mb-2").Text("Library"))
                     .P(p => p.Class("lead", "text-body-secondary", "mb-0")
-                        .Text("A calm home for reusable items and bundles."));
+                        .Text("A calm home for reusable items, bundles, and kits."));
             });
 
             if (!string.IsNullOrWhiteSpace(message))
@@ -46,20 +48,27 @@ public static class CatalogPage
             main.Div(row =>
             {
                 row.Class("row", "g-4")
-                    .Div(column => column.Class("col-lg-6")
+                    .Div(column => column.Class("col-lg-4")
                         .Add(OverviewCard(
                             "Items",
                             itemCount,
                             "Reusable files and folders saved for later.",
                             "/items",
                             "Browse items")))
-                    .Div(column => column.Class("col-lg-6")
+                    .Div(column => column.Class("col-lg-4")
                         .Add(OverviewCard(
                             "Bundles",
                             bundleCount,
                             "Curated groups of items with their destinations.",
                             "/bundles",
-                            "Browse bundles")));
+                            "Browse bundles")))
+                    .Div(column => column.Class("col-lg-4")
+                        .Add(OverviewCard(
+                            "Kits",
+                            kitCount,
+                            "Saved directory contents ready to copy into another project.",
+                            "/kits",
+                            "Browse kits")));
             });
         });
     }
@@ -116,18 +125,36 @@ public static class CatalogPage
                 .Text("Delete");
         });
 
+    internal static IHtmlContent DeleteKitButton(string name)=> FluentHtml.Button(button =>
+        {
+            button.Class("btn", "btn-sm", "btn-outline-danger")
+                .Type("button")
+                .Attr("data-action", "delete")
+                .Heimdall(heimdall => heimdall
+                    .Click(ActionIds.DeleteKit)
+                    .Payload(new DeleteStoragePayload { Name = name })
+                    .Target("#app")
+                    .SwapInner()
+                    .Disable())
+                .Text("Delete");
+        });
+
 	[ContentInvocation("clear")]
 	public static IHtmlContent Clear()
 	{
 		var bundles = BundleManager.List();
+		var kits = KitManager.List();
 		var items = StorageManager.List();
-		var total = bundles.Count + items.Count;
+		var total = bundles.Count + kits.Count + items.Count;
 
 		foreach (var bundle in bundles)
 			BundleManager.Delete(bundle.Name);
 
 		foreach (var item in items)
 			StorageManager.Delete(item.Name);
+
+		foreach (var kit in kits)
+			KitManager.Delete(kit.Name);
 
 		return Render(total == 0
 			? "The library is already empty."
@@ -162,6 +189,17 @@ public static class CatalogPage
 		var bundle = BundleManager.Read(payload.Name);
 		BundleManager.Delete(bundle.Name);
 		return BundlesPage.Render();
+	}
+
+	[ContentInvocation("kit.delete")]
+	public static IHtmlContent DeleteKit([ContentPayload] DeleteStoragePayload payload)
+	{
+		if (string.IsNullOrWhiteSpace(payload.Name))
+			return KitsPage.Render("Choose a kit to delete.", isError: true);
+
+		var kit = KitManager.Read(payload.Name);
+		KitManager.Delete(kit.Name);
+		return KitsPage.Render();
 	}
 
 	public sealed class DeleteStoragePayload

@@ -27,6 +27,64 @@ body {
     min-height: calc(100vh - 9rem);
 }
 
+.lasagna-kit-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.lasagna-kit-tree__folder {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+}
+
+.lasagna-kit-tree__summary {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.lasagna-kit-tree__summary::-webkit-details-marker {
+    display: none;
+}
+
+.lasagna-kit-tree__summary::before {
+    width: 1.25rem;
+    color: var(--bs-secondary-color);
+    content: "▸";
+}
+
+.lasagna-kit-tree__folder[open] > .lasagna-kit-tree__summary::before {
+    content: "▾";
+}
+
+.lasagna-kit-tree__children {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0 0.75rem 0.75rem 1.5rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--bs-border-color-translucent);
+}
+
+.lasagna-kit-tree__file {
+    min-width: 0;
+    padding: 0.75rem;
+    border-radius: var(--bs-border-radius);
+}
+
+.lasagna-kit-tree__file > div:first-child {
+    min-width: 0;
+}
+
+.lasagna-kit-tree__file a.font-monospace {
+    overflow-wrap: anywhere;
+}
+
 .lasagna-file-content {
     max-height: 70vh;
     overflow: auto;
@@ -64,6 +122,71 @@ body {
 
 .lasagna-file-content code [data-line="true"]:empty::after {
     content: " ";
+}
+
+.lasagna-namespace-diff__tree {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.lasagna-namespace-diff__file {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+}
+
+.lasagna-namespace-diff__summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    color: var(--bs-body-color);
+    cursor: pointer;
+    background: var(--bs-tertiary-bg);
+}
+
+.lasagna-namespace-diff__lines {
+    overflow-x: auto;
+    padding: 0.5rem 0;
+    background: #15191e;
+    color: #d7dde5;
+    font-family: var(--bs-font-monospace);
+    font-size: 0.82rem;
+}
+
+.lasagna-namespace-diff__line {
+    display: grid;
+    grid-template-columns: 3.5rem 3.5rem minmax(max-content, 1fr);
+    min-width: max-content;
+    line-height: 1.5;
+}
+
+.lasagna-namespace-diff__number {
+    padding: 0 0.75rem;
+    color: #77808c;
+    text-align: right;
+    user-select: none;
+}
+
+.lasagna-namespace-diff__code {
+    padding: 0 1rem 0 0.75rem;
+    white-space: pre;
+}
+
+.lasagna-namespace-diff__line--removed {
+    background: rgba(220, 53, 69, 0.22);
+    color: #ffb3ba;
+}
+
+.lasagna-namespace-diff__line--added {
+    background: rgba(25, 135, 84, 0.24);
+    color: #a9e8c5;
+}
+
+.lasagna-namespace-diff__line--context {
+    color: #aeb7c2;
 }
 
 @media (max-width: 575.98px) {

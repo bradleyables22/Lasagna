@@ -1,7 +1,14 @@
 ﻿
 namespace Lasagna.Models;
 
+internal enum TransferPlanKind
+{
+    Item,
+    Bundle,
+    Kit
+}
+
 internal sealed record TransferPlan(
 	string Name,
-	bool IsBundle,
+	TransferPlanKind Kind,
 	IReadOnlyList<TransferFile> Files);

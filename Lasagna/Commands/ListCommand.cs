@@ -16,23 +16,33 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
         [CommandOption("--bundles")]
         [Description("Show bundles only.")]
         public bool BundlesOnly { get; init; }
+
+        [CommandOption("--kits")]
+        [Description("Show kits only.")]
+        public bool KitsOnly { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
     {
-        if (settings.ItemsOnly && settings.BundlesOnly)
-            throw new InvalidOperationException("Choose either --items or --bundles, not both.");
+        var filters = new[] { settings.ItemsOnly, settings.BundlesOnly, settings.KitsOnly }
+            .Count(value => value);
 
-        var items = settings.BundlesOnly
+        if (filters > 1)
+            throw new InvalidOperationException("Choose only one of --items, --bundles, or --kits.");
+
+        var items = settings.BundlesOnly || settings.KitsOnly
             ? []
             : StorageManager.List();
-        var bundles = settings.ItemsOnly
+        var bundles = settings.ItemsOnly || settings.KitsOnly
             ? []
             : BundleManager.List();
+        var kits = settings.ItemsOnly || settings.BundlesOnly
+            ? []
+            : KitManager.List();
 
-        if (items.Count == 0 && bundles.Count == 0)
+        if (items.Count == 0 && bundles.Count == 0 && kits.Count == 0)
         {
-            ConsoleUi.WriteInfo("No stored items or bundles yet. Use 'lasagna item create' to add one.");
+            ConsoleUi.WriteInfo("No stored items, bundles, or kits yet. Use 'lasagna item create' or 'lasagna kit create' to add one.");
             return 0;
         }
 
@@ -41,6 +51,9 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
 
         if (bundles.Count > 0)
             WriteBundles(bundles);
+
+        if (kits.Count > 0)
+            WriteKits(kits);
 
         return 0;
     }
@@ -68,5 +81,18 @@ internal sealed class ListCommand : LasagnaCommand<ListCommand.Settings>
             .ToArray();
 
         ConsoleUi.WriteTable("Bundles", ["Name", "Contents"], rows);
+    }
+
+    private static void WriteKits(IReadOnlyList<KitManifest> kits)
+    {
+        var rows = kits
+            .OrderBy(kit => kit.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(kit => (IReadOnlyList<string>)[
+                kit.Name,
+                $"{kit.Files.Count} file{(kit.Files.Count == 1 ? string.Empty : "s")}",
+                kit.SourceNamespace ?? "-"])
+            .ToArray();
+
+        ConsoleUi.WriteTable("Kits", ["Name", "Contents", "Namespace"], rows);
     }
 }

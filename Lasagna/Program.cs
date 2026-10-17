@@ -18,13 +18,20 @@ app.Configure(config =>
     });
 
     config.AddCommand<LoadCommand>("load")
-        .WithDescription("Pull an item or bundle into the current project.");
+        .WithDescription("Pull an item, bundle, or kit into the current project with namespace alignment.");
     config.AddCommand<ListCommand>("list")
-        .WithDescription("List stored items and bundles in a table.");
+        .WithDescription("List stored items, bundles, and kits in tables.");
     config.AddCommand<RemoveCommand>("remove")
-        .WithDescription("Remove a stored item or bundle.");
+        .WithDescription("Remove a stored item, bundle, or kit.");
     config.AddCommand<ClearCommand>("clear")
-        .WithDescription("Remove every stored item and bundle.");
+        .WithDescription("Remove every stored item, bundle, and kit.");
+
+    config.AddBranch("namespace", namespaceCommands =>
+    {
+        namespaceCommands.SetDescription("Preview or apply namespace changes across source files.");
+        namespaceCommands.AddCommand<NamespaceRenameCommand>("rename")
+            .WithDescription("Rename a namespace and its related code references recursively.");
+    });
 
     config.AddBranch("browse", browse =>
     {
@@ -35,6 +42,8 @@ app.Configure(config =>
             .WithDescription("Open every file in a stored item in browser tabs.");
         browse.AddCommand<BrowseBundleCommand>("bundle")
             .WithDescription("Open every file referenced by a bundle in browser tabs.");
+        browse.AddCommand<BrowseKitCommand>("kit")
+            .WithDescription("Open every file captured by a kit in browser tabs.");
     });
 
     config.AddBranch("item", item =>
@@ -65,6 +74,19 @@ app.Configure(config =>
             .WithDescription("Remove a stored item reference from a bundle.");
         bundle.AddCommand<BundleDeleteCommand>("delete")
             .WithDescription("Delete a bundle manifest.");
+    });
+
+    config.AddBranch("kit", kit =>
+    {
+        kit.SetDescription("Capture and manage reusable directory contents.");
+        kit.AddCommand<KitCreateCommand>("create")
+            .WithDescription("Capture the contents of a directory as a kit.");
+        kit.AddCommand<KitUpdateCommand>("update")
+            .WithDescription("Replace a kit with the contents of a directory.");
+        kit.AddCommand<KitListCommand>("list")
+            .WithDescription("List kits or show the files inside one kit.");
+        kit.AddCommand<KitDeleteCommand>("delete")
+            .WithDescription("Delete a kit.");
     });
 });
 

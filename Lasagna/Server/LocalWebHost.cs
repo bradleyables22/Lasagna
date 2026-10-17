@@ -1,5 +1,7 @@
 using Heimdall.Server;
 using Lasagna.Helpers;
+using Lasagna.Models;
+using Lasagna.Server.Rendering.Components.Namespaces;
 using Lasagna.Server.Rendering.Layouts;
 using Lasagna.Server.Rendering.Pages;
 using Microsoft.AspNetCore.Builder;
@@ -49,6 +51,14 @@ internal static class LocalWebHost
 			FileProvider = new CompositeFileProvider(staticFileProviders)
 		});
 		app.UseHeimdall();
+
+		app.MapGet("/files/kit/{kit}/{**path}", (string kit, string? path) =>
+		{
+			if (!KitFilePage.TryResolve(kit, path, out var file) || file is null)
+				return Results.NotFound();
+
+			return Results.File(file.FullPath, "text/plain");
+		});
 
 		app.MapGet("/files/{item}/{**path}", (string item, string? path) =>
 		{
@@ -106,12 +116,89 @@ internal static class LocalWebHost
 			return MainLayout.Render(ctx, DocsPage.Render(), "Documentation");
 		});
 
+		app.MapHeimdallPage("/namespace/rename", (_, ctx) =>
+		{
+			var payload = new NamespaceRenamePanel.NamespaceRenamePayload
+			{
+				From = ctx.Request.Query["From"].ToString(),
+				To = ctx.Request.Query["To"].ToString(),
+				Scope = string.IsNullOrWhiteSpace(ctx.Request.Query["Scope"].ToString())
+					? "."
+					: ctx.Request.Query["Scope"].ToString()
+			};
+
+			NamespaceRenamePlan? plan = null;
+			string? message = null;
+			var isError = false;
+
+			if (!string.IsNullOrWhiteSpace(payload.From) &&
+				!string.IsNullOrWhiteSpace(payload.To))
+			{
+				try
+				{
+					plan = NamespaceRenameManager.BuildPlan(
+						payload.Scope,
+						payload.From,
+						payload.To);
+				}
+				catch (Exception exception) when (exception is
+					ArgumentException or
+					DirectoryNotFoundException or
+					FileNotFoundException or
+					IOException or
+					InvalidDataException or
+					UnauthorizedAccessException)
+				{
+					message = exception.Message;
+					isError = true;
+				}
+			}
+
+			return MainLayout.Render(
+				ctx,
+				NamespaceRenamePage.Render(payload, plan, message, isError),
+				"Namespace rename");
+		});
+
 		app.MapHeimdallPage("/bundles/{name}", (_, ctx) =>
 		{
 			var name = ctx.Request.RouteValues["name"]?.ToString()
 				?? throw new InvalidOperationException("A bundle name is required.");
 
 			return MainLayout.Render(ctx, BundlePage.Render(name), $"Bundle: {name}");
+		});
+
+		app.MapHeimdallPage("/kits", (_, ctx) =>
+		{
+			return MainLayout.Render(ctx, KitsPage.Render(), "Kits");
+		});
+
+		app.MapHeimdallPage("/kits/{name}", (_, ctx) =>
+		{
+			var name = ctx.Request.RouteValues["name"]?.ToString()
+				?? throw new InvalidOperationException("A kit name is required.");
+
+			return MainLayout.Render(ctx, KitPage.Render(name), $"Kit: {name}");
+		});
+
+		app.MapHeimdallPage("/kits/{kit}/files/{**path}", (_, ctx) =>
+		{
+			var kit = ctx.Request.RouteValues["kit"]?.ToString() ?? string.Empty;
+			var path = ctx.Request.RouteValues["path"]?.ToString();
+
+			if (!KitFilePage.TryResolve(kit, path, out var file) || file is null)
+			{
+				ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+				return MainLayout.Render(
+					ctx,
+					NotFoundPage.Render("That captured kit file could not be found."),
+					"Kit file not found");
+			}
+
+			return MainLayout.Render(
+				ctx,
+				KitFilePage.Render(file),
+				$"{Path.GetFileName(file.RelativePath)} · {file.KitName}");
 		});
 
 

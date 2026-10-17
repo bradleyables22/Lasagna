@@ -76,6 +76,16 @@ internal static class MainLayout
                                                                 .Li(item => item.Class("nav-item")
                                                                     .A(anchor => anchor
                                                                         .Class("nav-link")
+                                                                        .Href("/kits")
+                                                                        .Text("Kits")))
+                                                                .Li(item => item.Class("nav-item")
+                                                                    .A(anchor => anchor
+                                                                        .Class("nav-link")
+                                                                        .Href("/namespace/rename")
+                                                                        .Text("Rename")))
+                                                                .Li(item => item.Class("nav-item")
+                                                                    .A(anchor => anchor
+                                                                        .Class("nav-link")
                                                                         .Href("/docs")
                                                                         .Text("Docs")))
                                                                 .Li(item => item.Class("nav-item")
@@ -105,7 +115,7 @@ internal static class MainLayout
                                                     .Class("h4", "mb-3")
                                                     .Text("Clear the library?"))
                                                 .P(p => p.Class("text-body-secondary", "mb-4")
-                                                    .Text("This removes every stored item and bundle. This cannot be undone."))
+                                                    .Text("This removes every stored item, bundle, and kit. This cannot be undone."))
                                                 .Div(actions => actions.Class("d-flex", "justify-content-end", "gap-2")
                                                     .Button(cancel => cancel
                                                         .Type("button")

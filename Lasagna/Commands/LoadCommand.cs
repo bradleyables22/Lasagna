@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Lasagna.Helpers;
+using Lasagna.Models;
 using Spectre.Console.Cli;
 
 namespace Lasagna.Commands;
@@ -9,7 +10,7 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
     public sealed class Settings : LasagnaCommandSettings
     {
         [CommandArgument(0, "<name>")]
-        [Description("The stored item or bundle to pull into the current project.")]
+        [Description("The stored item, bundle, or kit to pull into the current project.")]
         public string Name { get; init; } = string.Empty;
 
         [CommandOption("--overwrite")]
@@ -27,6 +28,10 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
         [CommandOption("--no-namespace-rewrite")]
         [Description("Copy files without changing namespaces.")]
         public bool NoNamespaceRewrite { get; init; }
+
+        [CommandOption("--migrate")]
+        [Description("Compatibility alias; namespace alignment is automatic during load.")]
+        public bool Migrate { get; init; }
     }
 
     protected override int ExecuteCommand(CommandContext context, Settings settings)
@@ -47,8 +52,8 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
             throw new InvalidDataException($"'{settings.Name}' does not contain any files.");
 
         ConsoleUi.WriteInfo(
-            $"Pulling {(plan.IsBundle ? "bundle" : "item")} '{plan.Name}'...");
-        TransferManager.Pull(
+            $"Pulling {GetSourceLabel(plan.Kind)} '{plan.Name}'...");
+        var report = TransferManager.Pull(
             plan,
             settings.Overwrite,
             progress => ConsoleUi.WriteProgress(
@@ -57,10 +62,25 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
                 progress.Total,
                 progress.FilePath));
 
+        if (!settings.NoNamespaceRewrite &&
+            (report.FilesRewritten > 0 || report.ReferencesRewritten > 0))
+        {
+            ConsoleUi.WriteInfo(
+                $"Namespace alignment rewrote {report.FilesRewritten} file{(report.FilesRewritten == 1 ? string.Empty : "s")} " +
+                $"and {report.ReferencesRewritten} namespace reference{(report.ReferencesRewritten == 1 ? string.Empty : "s")}.");
+        }
+
         ConsoleUi.WriteSuccess(
             $"Pulled {plan.Files.Count} file{(plan.Files.Count == 1 ? string.Empty : "s")} " +
             $"into '{DirectoryManager.GetWorkingDirectory()}'.");
 
         return 0;
     }
+
+    private static string GetSourceLabel(TransferPlanKind kind) => kind switch
+    {
+        TransferPlanKind.Bundle => "bundle",
+        TransferPlanKind.Kit => "kit",
+        _ => "item"
+    };
 }

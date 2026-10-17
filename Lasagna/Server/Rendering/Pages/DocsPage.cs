@@ -33,7 +33,7 @@ internal static class DocsPage
                     .Div(body => body.Class("card-body")
                         .H2(h2 => h2.Class("h3").Text("Browser workflow"))
                         .P(p => p.Class("text-body-secondary", "mb-0")
-                            .Text("Use Items to create and manage reusable file collections. Use Bundles to group those items for repeatable loads. The Clear action in the top bar removes the entire local library after confirmation.")));
+                            .Text("Use Items for curated file collections, Kits for captured project or directory contents, and Bundles to group items for repeatable loads. The Clear action in the top bar removes the entire local library after confirmation.")));
             });
 
             main.Add(DocsCommands.Render());

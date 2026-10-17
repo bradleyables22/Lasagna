@@ -8,16 +8,19 @@ Files copied into a project remain ordinary project files. Lasagna does not keep
 
 ## How it works
 
-Lasagna has two types of reusable content:
+Lasagna has three types of reusable content:
 
 - **Items** are named collections of files and folders.
 - **Bundles** are manifest files that reference multiple items and specify where each item should be placed.
+- **Kits** are snapshots of a directory's contents that can be copied into another project.
 
-Items and bundle manifests are stored in the user's local application-data directory under the Lasagna storage folder. A bundle references items by name rather than duplicating their files.
+Items, bundle manifests, and kits are stored in the user's local application-data directory under the Lasagna storage folder. A bundle references items by name rather than duplicating their files. A kit stores the relative contents of a captured directory.
+
+Kits skip generated or machine-specific directories by default, including `.git`, `.vs`, `bin`, `obj`, `TestResults`, and `.idea`.
 
 When files are loaded, Lasagna works from the current working directory. Relative paths in bundle manifests are resolved against that directory.
 
-Command names, command options, item names, and bundle names are case-insensitive. File paths follow the rules of the operating system, while namespace text keeps C# and Razor's normal casing semantics.
+Command names, command options, item names, bundle names, and kit names are case-insensitive. File paths follow the rules of the operating system, while namespace text keeps C# and Razor's normal casing semantics.
 
 ## Quick start
 
@@ -43,6 +46,12 @@ The target namespace is detected from the nearest project file when possible. Yo
 
 ```text
 lasagna load card --namespace MyApp.Pages
+```
+
+Capture a complete project or directory as a kit:
+
+```text
+lasagna kit create orders-api .
 ```
 
 ## Creating items
@@ -80,7 +89,7 @@ lasagna item create card Components/Card.razor --source-namespace MyApp.Componen
 
 ## Loading items
 
-Use `load` to copy an item or bundle into the current working directory:
+Use `load` to copy an item, bundle, or kit into the current working directory:
 
 ```text
 lasagna load logging
@@ -103,6 +112,58 @@ lasagna load card --no-namespace-rewrite
 ```
 
 Namespace rewriting applies to C# and Razor-based source files. Other file types are copied without modification.
+
+## Kits
+
+Use a kit when you want to save the contents of a project or any directory as one reusable source set. The command requires an explicit directory so a whole-folder capture is intentional:
+
+```text
+lasagna kit create orders-api path/to/Orders.Api
+```
+
+The directory contents are captured without treating the directory as a buildable project. Project and solution files such as `.csproj`, `.fsproj`, `.vbproj`, `.sln`, `.slnx`, and `.slnf` are skipped. Generated directories such as `.git`, `.vs`, `bin`, `obj`, `TestResults`, and `.idea` are skipped automatically.
+
+Update a kit by recapturing a directory:
+
+```text
+lasagna kit update orders-api path/to/Orders.Api
+```
+
+List kits or inspect the files inside one:
+
+```text
+lasagna kit list
+lasagna kit list orders-api
+```
+
+Delete a kit:
+
+```text
+lasagna kit delete orders-api
+```
+
+Load a kit into another project. Namespace rewriting is enabled by default:
+
+```text
+lasagna load orders-api --destination src/Orders
+lasagna load orders-api --namespace MyCompany.Orders
+lasagna load orders-api --no-namespace-rewrite
+```
+
+During every load, Lasagna aligns the stored content with the target project's namespace. It discovers a kit's
+namespace hierarchy when needed, rewrites C# and Razor namespace references recursively, validates every rewrite
+before writing, and reports the number of files and references changed:
+
+```text
+lasagna load orders-api --destination src/Orders
+```
+
+The legacy `--migrate` option is still accepted as a compatibility alias, but it is no longer required. Use
+`--no-namespace-rewrite` when the stored namespaces must be copied exactly.
+
+The target namespace is detected from the nearest project file when possible. C# and Razor source files are rewritten recursively; unsupported file types are copied unchanged.
+
+From the browser, open `/kits/<name>` to add one or more individual files. Existing relative paths are protected from accidental replacement, and removing a file requires confirmation.
 
 ## Bundles
 
@@ -183,7 +244,7 @@ lasagna item remove card Components/ValidationMessage.razor
 
 ### `load`
 
-Copy an item or bundle into the current working directory.
+Copy an item, bundle, or kit into the current working directory.
 
 ```text
 lasagna load <name> [options]
@@ -195,6 +256,7 @@ Options:
 - `--destination <PATH>` places loaded files under a relative folder.
 - `--namespace <NAMESPACE>` specifies the target namespace instead of using the current project's namespace.
 - `--no-namespace-rewrite` copies namespaces exactly as stored.
+- `--migrate` is a compatibility alias; namespace alignment is already automatic.
 
 Common combinations:
 
@@ -210,6 +272,28 @@ lasagna load card --destination Components --no-namespace-rewrite --overwrite
 
 `--destination` is always relative to the current working directory. The load destination is added in front of any destination recorded in a bundle. `--namespace` only matters when namespace rewriting is enabled. `--no-namespace-rewrite` takes precedence over automatic or explicit namespace selection.
 
+### `namespace`
+
+Rename a namespace across an existing project. This is the explicit project-wide step for updating files that were
+already present before a kit, item, or bundle was loaded:
+
+```text
+lasagna namespace rename <FROM> <TO>
+lasagna namespace rename <FROM> <TO> --path src/Orders
+```
+
+The command previews changes by default. It recursively scans C#, Razor, and `.cshtml` files, rewrites the namespace
+and all matching descendant namespaces, `using` directives, aliases, and fully qualified code references. Generated
+files and common build or source-control directories are skipped. Use `--apply` to write the previewed changes:
+
+```text
+lasagna namespace rename Thing.Api MyCompany.OrderApi --dry-run
+lasagna namespace rename Thing.Api MyCompany.OrderApi --apply
+```
+
+The rename uses complete namespace-prefix matching, so `Thing.Apiary` is not changed by a `Thing.Api` rename. It does
+not modify comments, string literals, project files, or package references.
+
 ### `browse`
 
 Browse stored content or open the local Lasagna web interface.
@@ -218,9 +302,10 @@ Browse stored content or open the local Lasagna web interface.
 lasagna browse web
 lasagna browse item card
 lasagna browse bundle admin-ui
+lasagna browse kit orders-api
 ```
 
-The item and bundle commands open stored files in separate browser tabs using local `file://` URLs. Bundle destinations do not affect browsing; the commands open the stored files themselves.
+The item, bundle, and kit commands open stored files in separate browser tabs using local `file://` URLs. Bundle destinations do not affect browsing; the commands open the stored files themselves.
 
 `browse web` starts the local web interface and opens it in the browser.
 
@@ -236,40 +321,90 @@ The local browser interface is a dark-mode, server-rendered UI:
 - `/items/<name>/files/<path>` shows a read-only plain-text preview with line numbers and an option to open the raw file.
 - `/bundles` creates and lists bundles.
 - `/bundles/<name>` shows the items referenced by a bundle and allows the bundle to be deleted.
+- `/kits` captures and lists directory-content kits.
+- `/kits/<name>` shows the files captured by a kit, lets you add or remove individual files, and allows the kit to be deleted.
+- `/namespace/rename` previews a recursive namespace rename with expandable Git-style diffs and requires an explicit confirmation before applying changes.
 - `/docs` contains the in-app command and workflow reference.
 
 The file preview intentionally uses readable plain text rather than full syntax highlighting. The top-bar Clear action requires confirmation before removing the local library. Form actions return server-rendered HTML and update the current page content without a client-side application shell.
 
 ### `list`
 
-Display stored items and bundles in separate tables.
+Display stored items, bundles, and kits in separate tables.
 
 ```text
 lasagna list
 lasagna list --items
 lasagna list --bundles
+lasagna list --kits
 ```
 
-`--items` and `--bundles` are mutually exclusive. Use plain `lasagna list` to show both tables.
+`--items`, `--bundles`, and `--kits` are mutually exclusive. Use plain `lasagna list` to show all tables.
 
 ### `remove`
 
-Remove an item or bundle immediately.
+Remove an item, bundle, or kit immediately.
 
 ```text
 lasagna remove card
 lasagna remove card --item
 lasagna remove admin-ui --bundle
+lasagna remove orders-api --kit
 ```
 
-If neither `--item` nor `--bundle` is supplied, Lasagna identifies the stored object automatically. The two type switches are mutually exclusive.
+If neither `--item`, `--bundle`, nor `--kit` is supplied, Lasagna identifies the stored object automatically. The type switches are mutually exclusive.
 
 ### `clear`
 
-Show and remove every stored item and bundle immediately.
+Show and remove every stored item, bundle, and kit immediately.
 
 ```text
 lasagna clear
+```
+
+### `kit`
+
+Capture and manage directory-content kits. A kit command always starts with the `kit` branch:
+
+```text
+lasagna kit <command> [arguments] [options]
+```
+
+#### `kit create`
+
+Capture a directory as a kit:
+
+```text
+lasagna kit create <name> <directory> [options]
+```
+
+Options:
+
+- `--source-namespace <NAMESPACE>` overrides the namespace detected from the captured directory.
+
+#### `kit update`
+
+Replace an existing kit with the contents of a directory:
+
+```text
+lasagna kit update <name> <directory> [options]
+```
+
+#### `kit list`
+
+List kits or show the files inside one:
+
+```text
+lasagna kit list
+lasagna kit list <name>
+```
+
+#### `kit delete`
+
+Delete a kit:
+
+```text
+lasagna kit delete <name>
 ```
 
 ### `bundle`
@@ -372,6 +507,7 @@ lasagna bundle delete <name>
 
 - Source namespaces are detected while saving. `--source-namespace` is an override, not a requirement.
 - A bundle item's `--namespace` setting overrides the namespace supplied to `load` for that item.
+- Kits store their detected source namespace and use the same automatic namespace rewriting as items and bundles.
 - `load --namespace` is used for items that do not have a bundle-specific target namespace.
 - `--no-namespace-rewrite` on `load` disables rewriting for the entire load operation, including bundles.
 - `--namespace` and `--no-namespace-rewrite` may be supplied together, but the explicit namespace has no effect while rewriting is disabled.
