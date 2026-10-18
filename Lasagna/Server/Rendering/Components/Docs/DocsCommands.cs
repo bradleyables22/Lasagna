@@ -62,6 +62,15 @@ internal static class DocsCommands
                             lasagna namespace rename <from> <to> --path src/Orders
                             """))
                         .Add(CommandCard(
+                            "Inspect dependencies",
+                            "Scan the current directory or a solution scope without changing files. The inventory includes nested projects, direct and transitive package relationships, central package files, NuGet.Config sources, local folder feeds, and an interactive browser graph.",
+                            """
+                            lasagna deps list .
+                            lasagna deps list path/to/solution
+                            lasagna browse dependencies
+                             lasagna browse dependencies path/to/solution
+                            """))
+                        .Add(CommandCard(
                             "Browse stored content",
                             "Use the web interface or open the files belonging to an item, bundle, or kit in browser tabs.",
                             """

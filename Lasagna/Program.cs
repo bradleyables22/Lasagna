@@ -26,6 +26,13 @@ app.Configure(config =>
     config.AddCommand<ClearCommand>("clear")
         .WithDescription("Remove every stored item, bundle, and kit.");
 
+    config.AddBranch("deps", dependencies =>
+    {
+        dependencies.SetDescription("Inspect projects, NuGet packages, project references, and package sources.");
+        dependencies.AddCommand<DependencyListCommand>("list")
+            .WithDescription("Print a nested dependency inventory for the current directory or a supplied path.");
+    });
+
     config.AddBranch("namespace", namespaceCommands =>
     {
         namespaceCommands.SetDescription("Preview or apply namespace changes across source files.");
@@ -38,6 +45,8 @@ app.Configure(config =>
         browse.SetDescription("Browse stored content or open the local web interface.");
         browse.AddCommand<BrowseWebCommand>("web")
             .WithDescription("Open the local Lasagna web interface.");
+        browse.AddCommand<BrowseDependenciesCommand>("dependencies")
+            .WithDescription("Open the dependency explorer for the current directory.");
         browse.AddCommand<BrowseItemCommand>("item")
             .WithDescription("Open every file in a stored item in browser tabs.");
         browse.AddCommand<BrowseBundleCommand>("bundle")

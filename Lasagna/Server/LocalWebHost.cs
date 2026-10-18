@@ -16,7 +16,7 @@ namespace Lasagna.Server;
 
 internal static class LocalWebHost
 {
-    public static void Run()
+    public static void Run(string initialPath = "/")
     {
         var webRoot = Path.Combine(AppContext.BaseDirectory, "Server", "wwwroot");
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -28,6 +28,7 @@ internal static class LocalWebHost
         });
 
         builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.WebHost.UseStaticWebAssets();
         builder.Logging.ClearProviders();
 
         builder.Services.AddHeimdall(options => 
@@ -50,6 +51,7 @@ internal static class LocalWebHost
 		{
 			FileProvider = new CompositeFileProvider(staticFileProviders)
 		});
+		app.MapStaticAssets();
 		app.UseHeimdall();
 
 		app.MapGet("/files/kit/{kit}/{**path}", (string kit, string? path) =>
@@ -114,6 +116,34 @@ internal static class LocalWebHost
 		app.MapHeimdallPage("/docs", (_, ctx) =>
 		{
 			return MainLayout.Render(ctx, DocsPage.Render(), "Documentation");
+		});
+
+		app.MapHeimdallPage("/dependencies", (_, ctx) =>
+		{
+			var scope = string.IsNullOrWhiteSpace(ctx.Request.Query["Scope"].ToString())
+				? "."
+				: ctx.Request.Query["Scope"].ToString();
+
+			try
+			{
+				return MainLayout.Render(
+					ctx,
+					DependenciesPage.Render(scope, DependencyAnalyzer.BuildReport(scope)),
+					"Dependencies");
+			}
+			catch (Exception exception) when (exception is
+				ArgumentException or
+				DirectoryNotFoundException or
+				FileNotFoundException or
+				IOException or
+				UnauthorizedAccessException or
+				System.Xml.XmlException)
+			{
+				return MainLayout.Render(
+					ctx,
+					DependenciesPage.Render(scope, message: exception.Message, isError: true),
+					"Dependencies");
+			}
 		});
 
 		app.MapHeimdallPage("/namespace/rename", (_, ctx) =>
@@ -213,10 +243,15 @@ internal static class LocalWebHost
         var url = app.Urls.FirstOrDefault()
             ?? throw new InvalidOperationException("The local web interface did not start.");
 
-        ConsoleUi.WriteInfo($"Lasagna web interface: {url}");
+        var launchUrl = url.TrimEnd('/') +
+            (string.IsNullOrWhiteSpace(initialPath)
+                ? "/"
+                : initialPath.StartsWith('/') ? initialPath : "/" + initialPath);
+
+        ConsoleUi.WriteInfo($"Lasagna web interface: {launchUrl}");
         try
         {
-            Process.Start(new ProcessStartInfo(url)
+            Process.Start(new ProcessStartInfo(launchUrl)
             {
                 UseShellExecute = true
             });
@@ -225,7 +260,7 @@ internal static class LocalWebHost
             exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             ConsoleUi.WriteWarning(
-                $"The browser could not be opened automatically. Open {url} manually.");
+                $"The browser could not be opened automatically. Open {launchUrl} manually.");
         }
 
         ConsoleUi.WriteInfo("Use the Stop server button in the browser or the terminal stop control to end the session.");

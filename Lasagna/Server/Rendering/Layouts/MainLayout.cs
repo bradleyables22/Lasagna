@@ -38,7 +38,9 @@ internal static class MainLayout
                                 })
                                 .Script(script => script.Src("/js/bootstrap.bundle.min.js"))
                                 .Script(script => script.Src("/_content/HeimdallFramework.Web/heimdall-bundle.min.js"))
+                                .Script(script => script.Src("/js/vendor/cytoscape.min.js"))
                                 .Script(script => script.Src("/js/lasagna.js"))
+                                .Script(script => script.Src("/js/dependency-graph.js"))
                                 .Script(script => script.Src("/js/heimdall.debug.js"));
                         })
                         .Body(body =>
@@ -78,6 +80,11 @@ internal static class MainLayout
                                                                         .Class("nav-link")
                                                                         .Href("/kits")
                                                                         .Text("Kits")))
+                                                                .Li(item => item.Class("nav-item")
+                                                                    .A(anchor => anchor
+                                                                        .Class("nav-link")
+                                                                        .Href("/dependencies")
+                                                                        .Text("Dependencies")))
                                                                 .Li(item => item.Class("nav-item")
                                                                     .A(anchor => anchor
                                                                         .Class("nav-link")

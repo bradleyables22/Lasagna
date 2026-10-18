@@ -294,12 +294,42 @@ lasagna namespace rename Thing.Api MyCompany.OrderApi --apply
 The rename uses complete namespace-prefix matching, so `Thing.Apiary` is not changed by a `Thing.Api` rename. It does
 not modify comments, string literals, project files, or package references.
 
+### `deps`
+
+Inspect the dependency inventory for the current directory or a supplied project/solution scope:
+
+```text
+lasagna deps list .
+lasagna deps list path/to/solution
+```
+
+The inventory discovers projects recursively, recognizes `.sln` and `.slnx` membership, reports target frameworks and
+common configurations, and reads direct and transitive package relationships from project files and restored
+`obj/project.assets.json` files. It also inspects central package management files such as `Directory.Packages.props`,
+`Directory.Build.props`, and `Directory.Build.targets`.
+
+NuGet sources are read from the effective `NuGet.Config` hierarchy, including local folder feeds. Local sources are
+reported as local folders when they can be resolved; credentials and secret values are never displayed. Dependency
+inspection is read-only and does not change projects, package references, or files.
+
+The browser explorer includes an interactive dependency graph with directional project, package, and framework nodes.
+Use `Fit graph` to frame the current graph, `Reset view` to recompute the layout, or click a node to focus its
+incoming and outgoing relationships. The dependency tree remains available below the graph for exact inspection.
+
+Open the browser dependency explorer for the current directory or a supplied project/solution scope:
+
+```text
+lasagna browse dependencies
+lasagna browse dependencies path/to/solution
+```
+
 ### `browse`
 
 Browse stored content or open the local Lasagna web interface.
 
 ```text
 lasagna browse web
+lasagna browse dependencies [path]
 lasagna browse item card
 lasagna browse bundle admin-ui
 lasagna browse kit orders-api
@@ -324,6 +354,7 @@ The local browser interface is a dark-mode, server-rendered UI:
 - `/kits` captures and lists directory-content kits.
 - `/kits/<name>` shows the files captured by a kit, lets you add or remove individual files, and allows the kit to be deleted.
 - `/namespace/rename` previews a recursive namespace rename with expandable Git-style diffs and requires an explicit confirmation before applying changes.
+- `/dependencies` scans the launch directory recursively, shows nested project/package relationships, displays NuGet sources including local folder feeds, and reports diagnostics without changing files.
 - `/docs` contains the in-app command and workflow reference.
 
 The file preview intentionally uses readable plain text rather than full syntax highlighting. The top-bar Clear action requires confirmation before removing the local library. Form actions return server-rendered HTML and update the current page content without a client-side application shell.
