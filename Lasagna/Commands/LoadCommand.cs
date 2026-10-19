@@ -18,7 +18,7 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
         public bool Overwrite { get; init; }
 
         [CommandOption("--namespace <NAMESPACE>")]
-        [Description("The target namespace. Defaults to the current project's namespace.")]
+        [Description("The target namespace. Defaults to the project namespace plus the destination folder.")]
         public string? TargetNamespace { get; init; }
 
         [CommandOption("--destination <PATH>")]
@@ -46,7 +46,8 @@ internal sealed class LoadCommand : LasagnaCommand<LoadCommand.Settings>
             settings.Name,
             targetNamespace,
             !settings.NoNamespaceRewrite,
-            settings.Destination);
+            settings.Destination,
+            inferDestinationNamespace: settings.TargetNamespace is null);
 
         if (plan.Files.Count == 0)
             throw new InvalidDataException($"'{settings.Name}' does not contain any files.");

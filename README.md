@@ -42,7 +42,9 @@ Load the item into the current project:
 lasagna load card
 ```
 
-The target namespace is detected from the nearest project file when possible. You can provide it explicitly:
+The target namespace is detected from the nearest project file when possible. When files are loaded into a destination
+folder, that folder's name is appended by default (`ClaimsApi` + `accumulators` becomes `ClaimsApi.Accumulators`). You
+can provide the namespace explicitly when the folder layout and namespace layout differ:
 
 ```text
 lasagna load card --namespace MyApp.Pages
@@ -99,7 +101,7 @@ lasagna load card --destination Components
 
 Loaded files go into the current working directory by default. Use `--destination` to place them under a relative folder. Existing files are protected by default; use `--overwrite` when replacement is intentional.
 
-For namespace-aware files, Lasagna can rewrite the stored namespace to the target project's namespace. Use `--namespace` to override automatic project detection:
+For namespace-aware files, Lasagna can rewrite the stored namespace to the target project's namespace plus the destination folder. Use `--namespace` to override automatic project and folder detection:
 
 ```text
 lasagna load card --namespace MyApp.Features
@@ -254,7 +256,7 @@ Options:
 
 - `--overwrite` replaces existing destination files.
 - `--destination <PATH>` places loaded files under a relative folder.
-- `--namespace <NAMESPACE>` specifies the target namespace instead of using the current project's namespace.
+- `--namespace <NAMESPACE>` specifies the target namespace instead of inferring it from the project and destination folder.
 - `--no-namespace-rewrite` copies namespaces exactly as stored.
 - `--migrate` is a compatibility alias; namespace alignment is already automatic.
 
@@ -293,6 +295,30 @@ lasagna namespace rename Thing.Api MyCompany.OrderApi --apply
 
 The rename uses complete namespace-prefix matching, so `Thing.Apiary` is not changed by a `Thing.Api` rename. It does
 not modify comments, string literals, project files, or package references.
+
+### `shake`
+
+Preview unused local C# files in the current directory or a supplied directory. The scan is recursive and is limited
+to source files present in that scope; build output, generated files, packages, and framework assemblies are not
+treated as removable code:
+
+```text
+lasagna shake
+lasagna shake path/to/injected/library
+```
+
+The preview prints the declaration for every candidate plus the local semantic references and indirect-use hints that
+protect files from removal. Only complete `.cs` files whose top-level types have no local references and no safety
+indicators are eligible. Public, partial, attributed, entry-point, or indirectly referenced code is kept for review.
+Use `--project` when the build project cannot be inferred, and use `--apply` only after reviewing the evidence:
+
+```text
+lasagna shake path/to/injected/library --project ClaimsApi.csproj --dry-run
+lasagna shake path/to/injected/library --project ClaimsApi.csproj --apply
+```
+
+Applying a shake requires confirmation in the browser. The CLI requires `--apply`, removes only the previewed
+candidates, and builds the selected project afterward. If that build fails, the removed files are restored.
 
 ### `deps`
 
@@ -369,6 +395,7 @@ The local browser interface is a dark-mode, server-rendered UI:
 - `/kits` captures and lists directory-content kits.
 - `/kits/<name>` shows the files captured by a kit, lets you add or remove individual files, and allows the kit to be deleted.
 - `/namespace/rename` previews a recursive namespace rename with expandable Git-style diffs and requires an explicit confirmation before applying changes.
+- `/shake` previews unused local C# files recursively, displays declaration and reference evidence, and requires confirmation before removing candidates.
 - `/dependencies` scans the launch directory recursively, shows nested project/package relationships, displays NuGet sources including local folder feeds, and reports diagnostics without changing files.
 - `/docs` contains the in-app command and workflow reference.
 

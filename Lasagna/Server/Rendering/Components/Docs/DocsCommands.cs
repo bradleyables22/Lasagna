@@ -44,7 +44,7 @@ internal static class DocsCommands
                             """))
                         .Add(CommandCard(
                             "Use stored content",
-                            "Load an item, bundle, or kit into the current project. Existing files are protected unless overwrite is explicit; namespace alignment is automatic by default. Use --no-namespace-rewrite to preserve stored namespaces.",
+                            "Load an item, bundle, or kit into the current project. Existing files are protected unless overwrite is explicit; namespace alignment is automatic by default and follows the destination folder when possible. Use --namespace for an explicit target or --no-namespace-rewrite to preserve stored namespaces.",
                             """
                             lasagna load <name>
                             lasagna load <name> --destination Components
@@ -60,6 +60,14 @@ internal static class DocsCommands
                             lasagna namespace rename <from> <to> --dry-run
                             lasagna namespace rename <from> <to> --apply
                             lasagna namespace rename <from> <to> --path src/Orders
+                            """))
+                        .Add(CommandCard(
+                            "Shake unused local source",
+                            "Preview recursively scanned local C# files and show the declaration, semantic-reference, and indirect-use evidence for each decision. Only high-confidence complete files can be removed; applying changes requires confirmation and a successful build.",
+                            """
+                            lasagna shake
+                            lasagna shake path/to/injected/library --dry-run
+                            lasagna shake path/to/injected/library --project ClaimsApi.csproj --apply
                             """))
                         .Add(CommandCard(
                             "Inspect dependencies",

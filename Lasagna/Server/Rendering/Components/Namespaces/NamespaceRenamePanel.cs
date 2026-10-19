@@ -409,7 +409,7 @@ internal static class NamespaceRenamePanel
     }
 
     [ContentInvocation("preview")]
-    public static IHtmlContent Preview([FromForm] NamespaceRenamePayload payload)
+    public static IHtmlContent Preview([ContentPayload] NamespaceRenamePayload payload)
     {
         try
         {
@@ -427,7 +427,7 @@ internal static class NamespaceRenamePanel
     }
 
     [ContentInvocation("apply")]
-    public static IHtmlContent Apply([FromForm] NamespaceRenamePayload payload)
+    public static IHtmlContent Apply([ContentPayload] NamespaceRenamePayload payload)
     {
         try
         {

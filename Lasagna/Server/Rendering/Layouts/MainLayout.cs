@@ -86,11 +86,27 @@ internal static class MainLayout
                                                                         .Class("nav-link")
                                                                         .Href("/dependencies")
                                                                         .Text("Dependencies")))
-                                                                .Li(item => item.Class("nav-item")
+                                                                .Li(item => item
+                                                                    .Class("nav-item", "dropdown")
                                                                     .A(anchor => anchor
-                                                                        .Class("nav-link")
-                                                                        .Href("/namespace/rename")
-                                                                        .Text("Rename")))
+                                                                        .Class("nav-link", "dropdown-toggle")
+                                                                        .Href("#")
+                                                                        .Attr("role", "button")
+                                                                        .Attr("data-bs-toggle", "dropdown")
+                                                                        .Attr("aria-expanded", "false")
+                                                                        .Text("Extras"))
+                                                                    .Ul(menu => menu
+                                                                        .Class("dropdown-menu", "dropdown-menu-end")
+                                                                        .Li(entry => entry.Class("nav-item")
+                                                                            .A(anchor => anchor
+                                                                                .Class("dropdown-item")
+                                                                                .Href("/namespace/rename")
+                                                                                .Text("Rename")))
+                                                                        .Li(entry => entry.Class("nav-item")
+                                                                            .A(anchor => anchor
+                                                                                .Class("dropdown-item")
+                                                                                .Href("/shake")
+                                                                                .Text("Shake")))))
                                                                 .Li(item => item.Class("nav-item")
                                                                     .A(anchor => anchor
                                                                         .Class("nav-link")

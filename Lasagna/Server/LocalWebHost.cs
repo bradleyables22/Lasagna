@@ -170,6 +170,15 @@ internal static class LocalWebHost
 				"Namespace rename");
 		});
 
+		app.MapHeimdallPage("/shake", (_, ctx) =>
+		{
+			var scope = string.IsNullOrWhiteSpace(ctx.Request.Query["Scope"].ToString())
+				? "."
+				: ctx.Request.Query["Scope"].ToString();
+
+			return MainLayout.Render(ctx, ShakePage.Render(scope), "Leaf shake");
+		});
+
 		app.MapHeimdallPage("/bundles/{name}", (_, ctx) =>
 		{
 			var name = ctx.Request.RouteValues["name"]?.ToString()

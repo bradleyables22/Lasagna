@@ -1,4 +1,5 @@
 using Lasagna.Models;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Lasagna.Helpers;
 
@@ -8,7 +9,8 @@ internal static class TransferManager
         string name,
         string? targetNamespace,
         bool rewriteNamespace,
-        string destination = ".")
+        string destination = ".",
+        bool inferDestinationNamespace = false)
     {
         if (BundleManager.Exists(name))
         {
@@ -19,7 +21,9 @@ internal static class TransferManager
                     item.Destination,
                     item.RewriteNamespace && rewriteNamespace,
                     item.TargetNamespace ?? targetNamespace,
-                    destination))
+                    destination,
+                    inferDestinationNamespace,
+                    item.TargetNamespace is null))
                 .ToArray();
 
             return new TransferPlan(name, TransferPlanKind.Bundle, files);
@@ -33,7 +37,8 @@ internal static class TransferManager
                     kit.SourceNamespace,
                     targetNamespace,
                     rewriteNamespace,
-                    destination)
+                    destination,
+                    inferDestinationNamespace)
                 .ToArray();
 
             return new TransferPlan(name, TransferPlanKind.Kit, files);
@@ -44,7 +49,14 @@ internal static class TransferManager
             return new TransferPlan(
                 name,
                 TransferPlanKind.Item,
-                BuildItemFiles(name, ".", rewriteNamespace, targetNamespace, destination).ToArray());
+                BuildItemFiles(
+                    name,
+                    ".",
+                    rewriteNamespace,
+                    targetNamespace,
+                    destination,
+                    inferDestinationNamespace,
+                    inferDestinationNamespace).ToArray());
         }
 
         throw new DirectoryNotFoundException($"No storage item or bundle named '{name}' exists.");
@@ -94,12 +106,22 @@ internal static class TransferManager
             rewrittenReferences);
     }
 
-    private static IEnumerable<TransferFile> BuildItemFiles(string itemName, string destination, bool rewriteNamespace,string? targetNamespace, string loadDestination)
+    private static IEnumerable<TransferFile> BuildItemFiles(
+        string itemName,
+        string destination,
+        bool rewriteNamespace,
+        string? targetNamespace,
+        string loadDestination,
+        bool inferDestinationNamespace,
+        bool inferTargetNamespace)
     {
         var manifest = StorageManager.Read(itemName);
         var itemPath = StorageManager.GetItemPath(itemName);
         var normalizedLoadDestination = NormalizeRelativeDestination(loadDestination);
         var destinationRoot = DirectoryManager.ResolvePath(Path.Combine(normalizedLoadDestination, destination));
+        var effectiveTargetNamespace = inferDestinationNamespace && inferTargetNamespace
+            ? GetDestinationNamespace(targetNamespace, normalizedLoadDestination, destination)
+            : targetNamespace;
         var sourceFiles = manifest.Files
             .Select(relativeFile => Path.GetFullPath(Path.Combine(
                 itemPath,
@@ -119,7 +141,7 @@ internal static class TransferManager
                 sourcePath,
                 destinationPath,
                 effectiveSourceNamespace,
-                targetNamespace,
+                effectiveTargetNamespace,
                 rewriteNamespace);
         }
     }
@@ -129,11 +151,15 @@ internal static class TransferManager
         string? sourceNamespace,
         string? targetNamespace,
         bool rewriteNamespace,
-        string loadDestination)
+        string loadDestination,
+        bool inferDestinationNamespace)
     {
         var kitPath = KitManager.GetKitPath(kit.Name);
         var normalizedLoadDestination = NormalizeRelativeDestination(loadDestination);
         var destinationRoot = DirectoryManager.ResolvePath(normalizedLoadDestination);
+        var effectiveTargetNamespace = inferDestinationNamespace
+            ? GetDestinationNamespace(targetNamespace, normalizedLoadDestination, ".")
+            : targetNamespace;
         var sourceFiles = kit.Files
             .Select(relativeFile => Path.GetFullPath(Path.Combine(
                 kitPath,
@@ -153,7 +179,7 @@ internal static class TransferManager
                 sourcePath,
                 destinationPath,
                 effectiveSourceNamespace,
-                targetNamespace,
+                effectiveTargetNamespace,
                 rewriteNamespace);
         }
     }
@@ -179,6 +205,37 @@ internal static class TransferManager
             result.Content,
             result.Changed,
             result.Changes.Count);
+    }
+
+    private static string? GetDestinationNamespace(
+        string? baseNamespace,
+        string loadDestination,
+        string itemDestination)
+    {
+        if (string.IsNullOrWhiteSpace(baseNamespace))
+            return baseNamespace;
+
+        var normalizedLoadDestination = NormalizeRelativeDestination(loadDestination);
+        var normalizedItemDestination = NormalizeRelativeDestination(itemDestination);
+        var effectiveDestination = normalizedItemDestination == "."
+            ? normalizedLoadDestination
+            : normalizedItemDestination;
+
+        if (effectiveDestination == ".")
+            return baseNamespace;
+
+        var folderName = effectiveDestination
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(folderName) ||
+            !SyntaxFacts.IsValidIdentifier(folderName))
+        {
+            return baseNamespace;
+        }
+
+        var namespaceSegment = char.ToUpperInvariant(folderName[0]) + folderName[1..];
+        return $"{baseNamespace}.{namespaceSegment}";
     }
 
     private static string NormalizeRelativeDestination(string destination)

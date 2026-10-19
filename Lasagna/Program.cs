@@ -25,6 +25,8 @@ app.Configure(config =>
         .WithDescription("Remove a stored item, bundle, or kit.");
     config.AddCommand<ClearCommand>("clear")
         .WithDescription("Remove every stored item, bundle, and kit.");
+    config.AddCommand<ShakeCommand>("shake")
+        .WithDescription("Preview or remove unused local C# source files recursively.");
 
     config.AddBranch("deps", dependencies =>
     {
