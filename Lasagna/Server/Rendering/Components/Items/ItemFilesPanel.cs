@@ -1,6 +1,7 @@
 using Heimdall.Server;
 using Heimdall.Server.Rendering;
 using Lasagna.Helpers;
+using Lasagna.Server.Rendering.Components.Shared;
 using Lasagna.Server.Rendering.Pages;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
@@ -161,22 +162,39 @@ internal static class ItemFilesPanel
         });
 
     private static IHtmlContent RemoveFileButton(string itemName, string relativePath)
-        => FluentHtml.Button(button =>
+    {
+        var dialogId = ConfirmationDialog.CreateId(
+            "remove-item-file",
+            $"{itemName}:{relativePath}");
+
+        return FluentHtml.Fragment(fragment =>
         {
-            button.Class("btn", "btn-sm", "btn-outline-danger")
-                .Type("button")
-                .Heimdall(heimdall => heimdall
-                    .Click("item.file.remove")
-                    .Payload(new RemoveFilePayload
-                    {
-                        Name = itemName,
-                        Path = relativePath
-                    })
-                    .Target("#app")
-                    .SwapInner()
-                    .Disable())
-                .Text("Remove");
+            fragment.Add(ConfirmationDialog.Trigger(
+                dialogId,
+                "Remove",
+                "btn", "btn-sm", "btn-outline-danger"));
+            fragment.Add(ConfirmationDialog.Render(
+                dialogId,
+                "Remove this file?",
+                $"Remove '{relativePath}' from the item? This cannot be undone.",
+                FluentHtml.Button(confirm => confirm
+                    .Type("button")
+                    .Class("btn", "btn-danger")
+                    .CommandFor(dialogId)
+                    .Command(Html.CommandType.close)
+                    .Heimdall(heimdall => heimdall
+                        .Click("item.file.remove")
+                        .Payload(new RemoveFilePayload
+                        {
+                            Name = itemName,
+                            Path = relativePath
+                        })
+                        .Target("#app")
+                        .SwapInner()
+                        .Disable())
+                    .Text("Remove file"))));
         });
+    }
 
     private static string GetFileKind(string relativePath) => Path.GetExtension(relativePath).ToLowerInvariant() switch
         {

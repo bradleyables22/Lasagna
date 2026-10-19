@@ -1,6 +1,7 @@
 using Heimdall.Server;
 using Heimdall.Server.Rendering;
 using Lasagna.Helpers;
+using Lasagna.Server.Rendering.Components.Shared;
 using Lasagna.Server.Rendering.Pages;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
@@ -232,12 +233,10 @@ internal static class KitFilesPanel
     }
 
     private static IHtmlContent RemoveButton(string dialogId)
-        => FluentHtml.Button(button => button
-            .Type("button")
-            .Class("btn", "btn-sm", "btn-outline-danger")
-            .CommandFor(dialogId)
-            .Command(Html.CommandType.show_modal)
-            .Text("Remove"));
+        => ConfirmationDialog.Trigger(
+            dialogId,
+            "Remove",
+            "btn", "btn-sm", "btn-outline-danger");
 
     private static IHtmlContent RenderRemoveDialog(
         string kitName,
@@ -245,47 +244,27 @@ internal static class KitFilesPanel
         int index)
     {
         var dialogId = $"kit-file-remove-{index}";
-        var titleId = $"{dialogId}-title";
 
-        return FluentHtml.Tag("dialog", dialog =>
-        {
-            dialog.Id(dialogId)
-                .Class("lasagna-confirmation-dialog")
-                .Aria("labelledby", titleId)
-                .Div(panel =>
-                {
-                    panel.Class("lasagna-confirmation-dialog__panel", "p-4")
-                        .H2(h2 => h2
-                            .Id(titleId)
-                            .Class("h4", "mb-3")
-                            .Text("Remove this file?"))
-                        .P(p => p.Class("text-body-secondary", "mb-4")
-                            .Text($"Remove '{relativePath}' from the kit? This cannot be undone."))
-                        .Div(actions => actions.Class("d-flex", "justify-content-end", "gap-2")
-                            .Button(cancel => cancel
-                                .Type("button")
-                                .Class("btn", "btn-outline-secondary")
-                                .CommandFor(dialogId)
-                                .Command(Html.CommandType.close)
-                                .Text("Cancel"))
-                            .Button(confirm => confirm
-                                .Type("button")
-                                .Class("btn", "btn-danger")
-                                .CommandFor(dialogId)
-                                .Command(Html.CommandType.close)
-                                .Heimdall(heimdall => heimdall
-                                    .Click(ActionIds.Remove)
-                                    .Payload(new RemoveFilePayload
-                                    {
-                                        KitName = kitName,
-                                        RelativePath = relativePath
-                                    })
-                                    .Target("#app")
-                                    .SwapInner()
-                                    .Disable())
-                                .Text("Remove file")));
-                });
-        });
+        return ConfirmationDialog.Render(
+            dialogId,
+            "Remove this file?",
+            $"Remove '{relativePath}' from the kit? This cannot be undone.",
+            FluentHtml.Button(confirm => confirm
+                .Type("button")
+                .Class("btn", "btn-danger")
+                .CommandFor(dialogId)
+                .Command(Html.CommandType.close)
+                .Heimdall(heimdall => heimdall
+                    .Click(ActionIds.Remove)
+                    .Payload(new RemoveFilePayload
+                    {
+                        KitName = kitName,
+                        RelativePath = relativePath
+                    })
+                    .Target("#app")
+                    .SwapInner()
+                    .Disable())
+                .Text("Remove file")));
     }
 
     [RequestSizeLimit(50_000_000)]

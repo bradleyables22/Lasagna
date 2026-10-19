@@ -1,4 +1,5 @@
 using Heimdall.Server.Rendering;
+using Lasagna.Server.Rendering.Components.Shared;
 using Lasagna.Server.Rendering.Pages;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
@@ -96,53 +97,30 @@ internal static class MainLayout
                                                                         .Href("/docs")
                                                                         .Text("Docs")))
                                                                 .Li(item => item.Class("nav-item")
-                                                                    .Add(FluentHtml.Button(button =>
-                                                                    {
-                                                                        button.Class("btn", "btn-sm", "btn-outline-warning")
-                                                                            .Type("button")
-                                                                            .CommandFor("clear-confirmation")
-                                                                            .Command(Html.CommandType.show_modal)
-                                                                            .Text("Clear");
-                                                                    })));
+                                                                    .Add(ConfirmationDialog.Trigger(
+                                                                        "clear-confirmation",
+                                                                        "Clear",
+                                                                        "btn", "btn-sm", "btn-outline-warning")));
                                                         });
                                                 });
                                         });
                                 })
                                 .Div(app => app.Id("app").Add(page))
-                                .Tag("dialog", dialog =>
-                                {
-                                    dialog.Id("clear-confirmation")
-                                        .Class("lasagna-confirmation-dialog")
-                                        .Aria("labelledby", "clear-confirmation-title")
-                                        .Div(panel =>
-                                        {
-                                            panel.Class("lasagna-confirmation-dialog__panel", "p-4")
-                                                .H2(h2 => h2
-                                                    .Id("clear-confirmation-title")
-                                                    .Class("h4", "mb-3")
-                                                    .Text("Clear the library?"))
-                                                .P(p => p.Class("text-body-secondary", "mb-4")
-                                                    .Text("This removes every stored item, bundle, and kit. This cannot be undone."))
-                                                .Div(actions => actions.Class("d-flex", "justify-content-end", "gap-2")
-                                                    .Button(cancel => cancel
-                                                        .Type("button")
-                                                        .Class("btn", "btn-outline-secondary")
-                                                        .CommandFor("clear-confirmation")
-                                                        .Command(Html.CommandType.close)
-                                                        .Text("Cancel"))
-                                                    .Button(confirm => confirm
-                                                        .Type("button")
-                                                        .Class("btn", "btn-warning")
-                                                        .CommandFor("clear-confirmation")
-                                                        .Command(Html.CommandType.close)
-                                                        .Heimdall(heimdall => heimdall
-                                                            .Click(CatalogPage.ActionIds.Clear)
-                                                            .Target("#app")
-                                                            .SwapInner()
-                                                            .Disable())
-                                                        .Text("Clear everything")));
-                                        });
-                                });
+                                .Add(ConfirmationDialog.Render(
+                                    "clear-confirmation",
+                                    "Clear the library?",
+                                    "This removes every stored item, bundle, and kit. This cannot be undone.",
+                                    FluentHtml.Button(confirm => confirm
+                                        .Type("button")
+                                        .Class("btn", "btn-warning")
+                                        .CommandFor("clear-confirmation")
+                                        .Command(Html.CommandType.close)
+                                        .Heimdall(heimdall => heimdall
+                                            .Click(CatalogPage.ActionIds.Clear)
+                                            .Target("#app")
+                                            .SwapInner()
+                                            .Disable())
+                                        .Text("Clear everything"))));
                         });
                 });
         });

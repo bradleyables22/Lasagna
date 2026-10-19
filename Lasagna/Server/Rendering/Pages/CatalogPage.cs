@@ -1,6 +1,7 @@
 using Heimdall.Server;
 using Heimdall.Server.Rendering;
 using Lasagna.Helpers;
+using Lasagna.Server.Rendering.Components.Shared;
 using Microsoft.AspNetCore.Html;
 
 namespace Lasagna.Server.Rendering.Pages;
@@ -97,47 +98,63 @@ public static class CatalogPage
                 });
         });
 
-    internal static IHtmlContent DeleteItemButton(string name)=> FluentHtml.Button(button =>
-        {
-            button.Class("btn", "btn-sm", "btn-outline-danger")
-                .Type("button")
-                .Attr("data-action", "delete")
-                .Heimdall(heimdall => heimdall
-                    .Click(ActionIds.DeleteItem)
-                    .Payload(new DeleteStoragePayload { Name = name })
-                    .Target("#app")
-                    .SwapInner()
-                    .Disable())
-                .Text("Delete");
-        });
+    internal static IHtmlContent DeleteItemButton(string name)
+        => DeleteStorageButton(
+            "item",
+            name,
+            ActionIds.DeleteItem,
+            "Delete item?",
+            $"Delete '{name}'? This cannot be undone.");
 
-    internal static IHtmlContent DeleteBundleButton(string name)=> FluentHtml.Button(button =>
-        {
-            button.Class("btn", "btn-sm", "btn-outline-danger")
-                .Type("button")
-                .Attr("data-action", "delete")
-                .Heimdall(heimdall => heimdall
-                    .Click(ActionIds.DeleteBundle)
-                    .Payload(new DeleteStoragePayload { Name = name })
-                    .Target("#app")
-                    .SwapInner()
-                    .Disable())
-                .Text("Delete");
-        });
+    internal static IHtmlContent DeleteBundleButton(string name)
+        => DeleteStorageButton(
+            "bundle",
+            name,
+            ActionIds.DeleteBundle,
+            "Delete bundle?",
+            $"Delete '{name}'? This cannot be undone.");
 
-    internal static IHtmlContent DeleteKitButton(string name)=> FluentHtml.Button(button =>
+    internal static IHtmlContent DeleteKitButton(string name)
+        => DeleteStorageButton(
+            "kit",
+            name,
+            ActionIds.DeleteKit,
+            "Delete kit?",
+            $"Delete '{name}'? This cannot be undone.");
+
+    private static IHtmlContent DeleteStorageButton(
+        string kind,
+        string name,
+        string actionId,
+        string title,
+        string message)
+    {
+        var dialogId = ConfirmationDialog.CreateId($"delete-{kind}", name);
+
+        return FluentHtml.Fragment(fragment =>
         {
-            button.Class("btn", "btn-sm", "btn-outline-danger")
-                .Type("button")
-                .Attr("data-action", "delete")
-                .Heimdall(heimdall => heimdall
-                    .Click(ActionIds.DeleteKit)
-                    .Payload(new DeleteStoragePayload { Name = name })
-                    .Target("#app")
-                    .SwapInner()
-                    .Disable())
-                .Text("Delete");
+            fragment.Add(ConfirmationDialog.Trigger(
+                dialogId,
+                "Delete",
+                "btn", "btn-sm", "btn-outline-danger"));
+            fragment.Add(ConfirmationDialog.Render(
+                dialogId,
+                title,
+                message,
+                FluentHtml.Button(confirm => confirm
+                    .Type("button")
+                    .Class("btn", "btn-danger")
+                    .CommandFor(dialogId)
+                    .Command(Html.CommandType.close)
+                    .Heimdall(heimdall => heimdall
+                        .Click(actionId)
+                        .Payload(new DeleteStoragePayload { Name = name })
+                        .Target("#app")
+                        .SwapInner()
+                        .Disable())
+                    .Text("Delete"))));
         });
+    }
 
 	[ContentInvocation("clear")]
 	public static IHtmlContent Clear()

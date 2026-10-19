@@ -190,55 +190,36 @@ internal static class NamespaceRenamePanel
             .Text("Apply changes"));
 
     private static IHtmlContent RenderApplyDialog(NamespaceRenamePlan plan)
-        => FluentHtml.Tag("dialog", dialog =>
+        => ConfirmationDialog.Render(
+            ApplyDialogId,
+            "Apply namespace changes?",
+            $"This will update {plan.ChangedFiles.Count} file{(plan.ChangedFiles.Count == 1 ? string.Empty : "s")} under the selected scope. Review your source-control diff afterward.",
+            FluentHtml.Form(form =>
         {
-            dialog.Id(ApplyDialogId)
-                .Class("lasagna-confirmation-dialog")
-                .Aria("labelledby", $"{ApplyDialogId}-title")
-                .Div(panel =>
-                {
-                    panel.Class("lasagna-confirmation-dialog__panel", "p-4")
-                        .H2(h2 => h2
-                            .Id($"{ApplyDialogId}-title")
-                            .Class("h4", "mb-3")
-                            .Text("Apply namespace changes?"))
-                        .P(p => p.Class("text-body-secondary", "mb-4")
-                            .Text($"This will update {plan.ChangedFiles.Count} file{(plan.ChangedFiles.Count == 1 ? string.Empty : "s")} under the selected scope. Review your source-control diff afterward."))
-                        .Add(FluentHtml.Form(form =>
-                        {
-                            form.Id("namespace-rename-apply-form")
-                                .Heimdall(heimdall => heimdall
-                                    .Submit(ActionIds.Apply)
-                                    .PayloadFromClosestForm()
-                                    .Target("#app")
-                                    .SwapInner()
-                                    .PreventDefault()
-                                    .Disable());
+            form.Id("namespace-rename-apply-form")
+                .Heimdall(heimdall => heimdall
+                    .Submit(ActionIds.Apply)
+                    .PayloadFromClosestForm()
+                    .Target("#app")
+                    .SwapInner()
+                    .PreventDefault()
+                    .Disable());
 
-                            form.Input(Html.InputType.hidden, input => input
-                                .Name("From")
-                                .Value(plan.SourceNamespace));
-                            form.Input(Html.InputType.hidden, input => input
-                                .Name("To")
-                                .Value(plan.TargetNamespace));
-                            form.Input(Html.InputType.hidden, input => input
-                                .Name("Scope")
-                                .Value(plan.RootPath));
+            form.Input(Html.InputType.hidden, input => input
+                .Name("From")
+                .Value(plan.SourceNamespace));
+            form.Input(Html.InputType.hidden, input => input
+                .Name("To")
+                .Value(plan.TargetNamespace));
+            form.Input(Html.InputType.hidden, input => input
+                .Name("Scope")
+                .Value(plan.RootPath));
 
-                            form.Div(actions => actions.Class("d-flex", "justify-content-end", "gap-2")
-                                .Button(cancel => cancel
-                                    .Type("button")
-                                    .Class("btn", "btn-outline-secondary")
-                                    .CommandFor(ApplyDialogId)
-                                    .Command(Html.CommandType.close)
-                                    .Text("Cancel"))
-                                .Button(confirm => confirm
-                                    .Type("submit")
-                                    .Class("btn", "btn-warning")
-                                    .Text("Apply changes")));
-                        }));
-                });
-        });
+            form.Button(confirm => confirm
+                .Type("submit")
+                .Class("btn", "btn-warning")
+                .Text("Apply changes"));
+        }));
 
     private static IHtmlContent RenderDiffFolder(DiffFolderNode folder)
         => FluentHtml.Tag("details", details =>
