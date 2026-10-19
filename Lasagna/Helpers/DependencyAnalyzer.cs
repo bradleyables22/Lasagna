@@ -20,10 +20,12 @@ internal static class DependencyAnalyzer
         var rootPath = DirectoryManager.GetDirectoryPath(scope);
         var configFiles = DiscoverNuGetConfigFiles(rootPath);
         var packageSources = ReadPackageSources(configFiles);
-        var projectPaths = EnumerateFiles(rootPath, ProjectExtensions)
+        var packageResolver = new PackageArchiveResolver(packageSources);
+        var discoveredFiles = DiscoverDependencyFiles(rootPath);
+        var projectPaths = discoveredFiles.ProjectPaths
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var solutionPaths = EnumerateFiles(rootPath, [".sln", ".slnx"])
+        var solutionPaths = discoveredFiles.SolutionPaths
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var solutionMembership = ReadSolutionMembership(solutionPaths, rootPath);
@@ -32,6 +34,9 @@ internal static class DependencyAnalyzer
             ReadSolutionConfigurations,
             StringComparer.OrdinalIgnoreCase);
         var descriptors = projectPaths
+            .AsParallel()
+            .AsOrdered()
+            .WithDegreeOfParallelism(GetIoParallelism())
             .Select(path => ReadProjectDescriptor(path, rootPath))
             .ToDictionary(descriptor => descriptor.Path, StringComparer.OrdinalIgnoreCase);
 
@@ -41,8 +46,25 @@ internal static class DependencyAnalyzer
         var projects = new List<DependencyProject>();
         var assetsByProject = new Dictionary<string, AssetGraph>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var descriptor in descriptors.Values)
+        var assetScans = descriptors.Values
+            .AsParallel()
+            .AsOrdered()
+            .WithDegreeOfParallelism(GetIoParallelism())
+            .Select(descriptor =>
+            {
+                var projectIssues = new List<DependencyIssue>();
+                var assetsPath = Path.Combine(
+                    Path.GetDirectoryName(descriptor.Path) ?? rootPath,
+                    "obj",
+                    "project.assets.json");
+                var assets = TryReadAssets(assetsPath, packageResolver, projectIssues);
+                return new ProjectAssetScan(descriptor, assets, projectIssues);
+            })
+            .ToArray();
+
+        foreach (var scan in assetScans)
         {
+            var descriptor = scan.Descriptor;
             var projectKey = ProjectKey(descriptor.Path);
             AddNode(nodes, new DependencyNode(
                 projectKey,
@@ -50,11 +72,8 @@ internal static class DependencyAnalyzer
                 DependencyNodeKind.Project,
                 Path: descriptor.Path));
 
-            var assetsPath = Path.Combine(
-                Path.GetDirectoryName(descriptor.Path) ?? rootPath,
-                "obj",
-                "project.assets.json");
-            var assets = TryReadAssets(assetsPath, packageSources, issues);
+            var assets = scan.Assets;
+            issues.AddRange(scan.Issues);
 
             if (assets is not null)
                 assetsByProject[descriptor.Path] = assets;
@@ -137,7 +156,9 @@ internal static class DependencyAnalyzer
                     ?? packageReference.Version
                     ?? "unresolved";
                 var packageSource = assets?.GetPackageSource(packageReference.Id)
-                    ?? FindPackageSource(packageReference.Id, packageVersion, packageSources)?.Name;
+                    ?? (assets is null
+                        ? packageResolver.FindSource(packageReference.Id, packageVersion)?.Name
+                        : null);
 
                 AddNode(nodes, new DependencyNode(
                     packageKey,
@@ -188,7 +209,7 @@ internal static class DependencyAnalyzer
             {
                 AddLocalFeedDependencies(
                     packageReferences,
-                    packageSources,
+                    packageResolver,
                     nodes,
                     edges,
                     issues);
@@ -374,7 +395,7 @@ internal static class DependencyAnalyzer
 
     private static AssetGraph? TryReadAssets(
         string path,
-        IReadOnlyList<DependencyPackageSource> packageSources,
+        PackageArchiveResolver packageResolver,
         ICollection<DependencyIssue> issues)
     {
         if (!File.Exists(path))
@@ -401,7 +422,7 @@ internal static class DependencyAnalyzer
                         }
 
                         var key = PackageKey(id, version);
-                        var source = FindPackageSource(id, version, packageSources)?.Name;
+                        var source = packageResolver.FindSource(id, version, scanFallback: false)?.Name;
                         graph.Packages[key] = new AssetPackage(key, id, version, source);
 
                         if (!library.Value.TryGetProperty("dependencies", out var dependencies))
@@ -418,7 +439,7 @@ internal static class DependencyAnalyzer
                                     dependencyKey,
                                     dependency.Name,
                                     ExtractPackageVersion(dependencyKey) ?? dependencyVersion,
-                                    FindPackageSource(dependency.Name, dependencyVersion, packageSources)?.Name));
+                                    packageResolver.FindSource(dependency.Name, dependencyVersion, scanFallback: false)?.Name));
                             graph.Dependencies.Add(new AssetDependency(
                                 key,
                                 dependencyKey,
@@ -442,7 +463,7 @@ internal static class DependencyAnalyzer
 
     private static void AddLocalFeedDependencies(
         IReadOnlyList<PackageReferenceSpec> packageReferences,
-        IReadOnlyList<DependencyPackageSource> sources,
+        PackageArchiveResolver packageResolver,
         IDictionary<string, DependencyNode> nodes,
         ISet<DependencyEdge> edges,
         ICollection<DependencyIssue> issues)
@@ -463,7 +484,7 @@ internal static class DependencyAnalyzer
             if (!visited.Add(currentKey))
                 continue;
 
-            var package = FindPackageArchive(current.Id, current.Version, sources);
+            var package = packageResolver.FindArchive(current.Id, current.Version);
             if (package is null)
                 continue;
 
@@ -476,7 +497,7 @@ internal static class DependencyAnalyzer
                     dependency.Id,
                     DependencyNodeKind.Package,
                     dependencyVersion,
-                    Source: FindPackageSource(dependency.Id, dependencyVersion, sources)?.Name));
+                    Source: packageResolver.FindSource(dependency.Id, dependencyVersion)?.Name));
                 edges.Add(new DependencyEdge(
                     currentKey,
                     dependencyKey,
@@ -507,15 +528,52 @@ internal static class DependencyAnalyzer
         }
     }
 
-    private static string? FindPackageArchive(
-        string id,
-        string version,
-        IReadOnlyList<DependencyPackageSource> sources)
+    private sealed class PackageArchiveResolver
     {
-        foreach (var source in sources.Where(source => source.IsLocalFolder && source.IsEnabled))
+        private readonly IReadOnlyList<DependencyPackageSource> sources;
+        private readonly object indexGate = new();
+        private readonly Dictionary<string, IReadOnlyDictionary<string, string>> indexes =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        internal PackageArchiveResolver(IReadOnlyList<DependencyPackageSource> sources)
+        {
+            this.sources = sources;
+        }
+
+        internal string? FindArchive(string id, string version)
+        {
+            foreach (var source in sources.Where(source => source.IsLocalFolder && source.IsEnabled))
+            {
+                var archive = FindArchive(source, id, version);
+                if (archive is not null)
+                    return archive;
+            }
+
+            return null;
+        }
+
+        internal DependencyPackageSource? FindSource(
+            string id,
+            string version,
+            bool scanFallback = true)
+        {
+            foreach (var source in sources.Where(source => source.IsLocalFolder && source.IsEnabled))
+            {
+                if (FindArchive(source, id, version, scanFallback) is not null)
+                    return source;
+            }
+
+            return sources.FirstOrDefault(source => source.IsEnabled);
+        }
+
+        private string? FindArchive(
+            DependencyPackageSource source,
+            string id,
+            string version,
+            bool scanFallback = true)
         {
             if (string.IsNullOrWhiteSpace(source.ResolvedPath) || !Directory.Exists(source.ResolvedPath))
-                continue;
+                return null;
 
             var candidates = new[]
             {
@@ -529,37 +587,70 @@ internal static class DependencyAnalyzer
             if (candidate is not null)
                 return candidate;
 
+            if (!scanFallback)
+                return null;
+
+            var index = GetIndex(source.ResolvedPath);
+            index.TryGetValue($"{id}.{version}.nupkg", out var archive);
+            return archive;
+        }
+
+        private IReadOnlyDictionary<string, string> GetIndex(string rootPath)
+        {
+            var key = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar);
+
+            lock (indexGate)
+            {
+                if (indexes.TryGetValue(key, out var existing))
+                    return existing;
+
+                var index = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var archive in EnumerateArchives(key))
+                {
+                    var fileName = Path.GetFileName(archive);
+                    if (!string.IsNullOrWhiteSpace(fileName))
+                        index.TryAdd(fileName, archive);
+                }
+
+                indexes[key] = index;
+                return index;
+            }
+        }
+
+        private static IEnumerable<string> EnumerateArchives(string rootPath)
+        {
+            var directory = new DirectoryInfo(rootPath);
+            if (!directory.Exists || IsReparsePoint(directory))
+                yield break;
+
+            FileInfo[] files;
+            DirectoryInfo[] directories;
+
             try
             {
-                candidate = Directory.EnumerateFiles(
-                        source.ResolvedPath,
-                        $"{id}.{version}.nupkg",
-                        SearchOption.AllDirectories)
-                    .FirstOrDefault();
-
-                if (candidate is not null)
-                    return candidate;
+                files = directory.GetFiles("*.nupkg", SearchOption.TopDirectoryOnly);
+                directories = directory.GetDirectories();
             }
-            catch (UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
+                yield break;
+            }
+
+            foreach (var file in files)
+                yield return file.FullName;
+
+            foreach (var child in directories)
+            {
+                if (IsReparsePoint(child))
+                    continue;
+
+                foreach (var archive in EnumerateArchives(child.FullName))
+                    yield return archive;
             }
         }
 
-        return null;
-    }
-
-    private static DependencyPackageSource? FindPackageSource(
-        string id,
-        string version,
-        IReadOnlyList<DependencyPackageSource> sources)
-    {
-        foreach (var source in sources.Where(source => source.IsEnabled && source.IsLocalFolder))
-        {
-            if (FindPackageArchive(id, version, [source]) is not null)
-                return source;
-        }
-
-        return sources.FirstOrDefault(source => source.IsEnabled);
+        private static bool IsReparsePoint(FileSystemInfo entry) =>
+            entry.Attributes.HasFlag(FileAttributes.ReparsePoint);
     }
 
     private static IReadOnlyList<DependencyPackageSource> ReadPackageSources(
@@ -779,11 +870,30 @@ internal static class DependencyAnalyzer
         }
     }
 
-    private static IEnumerable<string> EnumerateFiles(string rootPath, IEnumerable<string> extensions)
+    private static DiscoveredDependencyFiles DiscoverDependencyFiles(string rootPath)
     {
-        var extensionSet = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
-        return EnumerateFilesRecursive(rootPath, extensionSet);
+        var projectPaths = new List<string>();
+        var solutionPaths = new List<string>();
+        var extensions = new HashSet<string>(ProjectExtensions, StringComparer.OrdinalIgnoreCase)
+        {
+            ".sln",
+            ".slnx"
+        };
+
+        foreach (var path in EnumerateFilesRecursive(rootPath, extensions))
+        {
+            if (ProjectExtensions.Contains(Path.GetExtension(path)))
+                projectPaths.Add(path);
+            else if (string.Equals(Path.GetExtension(path), ".sln", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(Path.GetExtension(path), ".slnx", StringComparison.OrdinalIgnoreCase))
+                solutionPaths.Add(path);
+        }
+
+        return new DiscoveredDependencyFiles(projectPaths, solutionPaths);
     }
+
+    private static int GetIoParallelism() =>
+        Math.Min(4, Math.Max(1, Environment.ProcessorCount));
 
     private static IEnumerable<string> EnumerateFilesRecursive(string path, IReadOnlySet<string> extensions)
     {
@@ -952,6 +1062,15 @@ internal static class DependencyAnalyzer
         IReadOnlyList<string> Configurations,
         IReadOnlyList<PackageReferenceSpec> PackageReferences,
         IReadOnlyList<ProjectReferenceSpec> ProjectReferences);
+
+    private sealed record ProjectAssetScan(
+        ProjectDescriptor Descriptor,
+        AssetGraph? Assets,
+        IReadOnlyList<DependencyIssue> Issues);
+
+    private sealed record DiscoveredDependencyFiles(
+        IReadOnlyList<string> ProjectPaths,
+        IReadOnlyList<string> SolutionPaths);
 
     private sealed record PackageReferenceSpec(
         string Id,
