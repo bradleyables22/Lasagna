@@ -313,13 +313,73 @@ body {
     height: 42rem;
     min-height: 28rem;
     overflow: hidden;
+    cursor: grab;
     background: var(--bs-body-bg);
+}
+
+.lasagna-dependency-graph__canvas.is-dragging {
+    cursor: grabbing;
 }
 
 .lasagna-dependency-graph__selection {
     min-height: 3rem;
     padding: 0.75rem;
     border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.lasagna-dependency-graph-modal {
+    inset: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+}
+
+.lasagna-dependency-graph-modal::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.lasagna-dependency-graph-modal__content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.lasagna-dependency-graph-modal__header {
+    flex: 0 0 auto;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    background: var(--bs-body-bg);
+}
+
+.lasagna-dependency-graph-modal__body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0;
+}
+
+.lasagna-dependency-graph-modal__body > .lasagna-dependency-graph-shell {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.lasagna-dependency-graph-modal .lasagna-dependency-graph__canvas {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+}
+
+.lasagna-dependency-graph-modal .lasagna-dependency-graph__selection {
+    flex: 0 0 auto;
 }
 
 @media (max-width: 575.98px) {

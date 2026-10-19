@@ -31,6 +31,8 @@ app.Configure(config =>
         dependencies.SetDescription("Inspect projects, NuGet packages, project references, and package sources.");
         dependencies.AddCommand<DependencyListCommand>("list")
             .WithDescription("Print a nested dependency inventory for the current directory or a supplied path.");
+        dependencies.AddCommand<DependencyReplaceCommand>("replace")
+            .WithDescription("Replace a direct NuGet package reference with source code from a stored kit.");
     });
 
     config.AddBranch("namespace", namespaceCommands =>

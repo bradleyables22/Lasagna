@@ -63,12 +63,13 @@ internal static class DocsCommands
                             """))
                         .Add(CommandCard(
                             "Inspect dependencies",
-                            "Scan the current directory or a solution scope without changing files. The inventory includes nested projects, direct and transitive package relationships, central package files, NuGet.Config sources, local folder feeds, and an interactive browser graph.",
+                            "Scan the current directory or a solution scope without changing files. The inventory includes nested projects, direct and transitive package relationships, central package files, NuGet.Config sources, local folder feeds, and an interactive browser graph. Use deps replace separately when you are ready to replace a direct package with a source kit.",
                             """
                             lasagna deps list .
                             lasagna deps list path/to/solution
                             lasagna browse dependencies
-                             lasagna browse dependencies path/to/solution
+                            lasagna browse dependencies path/to/solution
+                            lasagna deps replace Thing.Api --with-kit thing-api --dry-run
                             """))
                         .Add(CommandCard(
                             "Browse stored content",

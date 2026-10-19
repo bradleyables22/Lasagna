@@ -45,17 +45,21 @@
         const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
         const edges = Array.isArray(graph.edges) ? graph.edges : [];
         if (nodes.length === 0) {
-            canvas.textContent = "No dependency nodes were found.";
+            canvas.textContent = "No dependencies were found in this scope.";
             return;
         }
 
+        const modal = canvas.closest("dialog[data-dependency-graph-modal]");
+        canvas.replaceChildren();
         const theme = readTheme();
         const cy = window.cytoscape({
             container: canvas,
             elements: [...nodes, ...edges],
-            minZoom: 0.08,
-            maxZoom: 4,
-            wheelSensitivity: 0.18,
+            minZoom: 0.03,
+            maxZoom: 8,
+            wheelSensitivity: 0.36,
+            autolock: false,
+            autoungrabify: false,
             boxSelectionEnabled: false,
             style: [
                 {
@@ -141,6 +145,15 @@
                     }
                 },
                 {
+                    selector: "edge.is-connected",
+                    style: {
+                        "line-color": theme.warning,
+                        "target-arrow-color": theme.warning,
+                        width: 3,
+                        opacity: 1
+                    }
+                },
+                {
                     selector: ".is-focused",
                     style: {
                         "border-color": theme.warning,
@@ -169,7 +182,7 @@
         const selection = shell?.querySelector("[data-dependency-graph-selection]");
 
         const clearSelection = () => {
-            cy.elements().removeClass("is-focused is-dimmed");
+            cy.elements().removeClass("is-focused is-connected is-dimmed");
             if (selection) {
                 selection.textContent = "Click a node to inspect its dependencies.";
             }
@@ -177,9 +190,10 @@
 
         const focusNode = node => {
             const neighborhood = node.closedNeighborhood();
-            cy.elements().removeClass("is-focused is-dimmed");
+            cy.elements().removeClass("is-focused is-connected is-dimmed");
             cy.elements().difference(neighborhood).addClass("is-dimmed");
             node.addClass("is-focused");
+            node.connectedEdges().addClass("is-connected");
 
             if (selection) {
                 const data = node.data();
@@ -195,12 +209,40 @@
             cy.fit(cy.elements(), 32);
         };
 
+        const resize = () => {
+            cy.resize();
+        };
+
+        const download = () => {
+            try {
+                const image = cy.png({
+                    full: true,
+                    bg: theme.bodyBackground,
+                    maxWidth: 4096,
+                    maxHeight: 4096
+                });
+                const anchor = document.createElement("a");
+                const stamp = new Date().toISOString().replace(/[.:]/g, "-");
+                anchor.href = image;
+                anchor.download = `lasagna-dependency-graph-${stamp}.png`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+            } catch {
+                if (selection) {
+                    selection.textContent = "The graph image could not be downloaded.";
+                }
+            }
+        };
+
         cy.on("tap", "node", event => focusNode(event.target));
         cy.on("tap", event => {
             if (event.target === cy) {
                 clearSelection();
             }
         });
+        cy.on("grab", "node", () => canvas.classList.add("is-dragging"));
+        cy.on("free", "node", () => canvas.classList.remove("is-dragging"));
 
         shell?.addEventListener("click", event => {
             const action = event.target.closest("[data-dependency-graph-action]");
@@ -221,14 +263,39 @@
                     animate: false
                 }).run();
                 fit();
+            } else if (action.dataset.dependencyGraphAction === "download") {
+                download();
             }
         });
 
         if (typeof window.ResizeObserver === "function") {
-            new ResizeObserver(fit).observe(canvas);
+            new ResizeObserver(() => {
+                resize();
+                cy.forceRender();
+            }).observe(canvas);
         }
 
-        fit();
+        let hasOpened = false;
+        modal?.addEventListener("toggle", () => {
+            if (modal.open) {
+                requestAnimationFrame(() => {
+                    resize();
+                    if (!hasOpened) {
+                        fit();
+                        hasOpened = true;
+                    }
+                    cy.forceRender();
+                    requestAnimationFrame(() => {
+                        resize();
+                        cy.forceRender();
+                    });
+                });
+            }
+        });
+
+        if (!modal) {
+            fit();
+        }
     };
 
     const initialize = root => {

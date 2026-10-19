@@ -124,26 +124,7 @@ internal static class LocalWebHost
 				? "."
 				: ctx.Request.Query["Scope"].ToString();
 
-			try
-			{
-				return MainLayout.Render(
-					ctx,
-					DependenciesPage.Render(scope, DependencyAnalyzer.BuildReport(scope)),
-					"Dependencies");
-			}
-			catch (Exception exception) when (exception is
-				ArgumentException or
-				DirectoryNotFoundException or
-				FileNotFoundException or
-				IOException or
-				UnauthorizedAccessException or
-				System.Xml.XmlException)
-			{
-				return MainLayout.Render(
-					ctx,
-					DependenciesPage.Render(scope, message: exception.Message, isError: true),
-					"Dependencies");
-			}
+			return MainLayout.Render(ctx, DependenciesPage.Render(scope), "Dependencies");
 		});
 
 		app.MapHeimdallPage("/namespace/rename", (_, ctx) =>

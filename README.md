@@ -309,8 +309,8 @@ common configurations, and reads direct and transitive package relationships fro
 `Directory.Build.props`, and `Directory.Build.targets`.
 
 NuGet sources are read from the effective `NuGet.Config` hierarchy, including local folder feeds. Local sources are
-reported as local folders when they can be resolved; credentials and secret values are never displayed. Dependency
-inspection is read-only and does not change projects, package references, or files.
+reported as local folders when they can be resolved; credentials and secret values are never displayed. `deps list` and
+the browser explorer are read-only and do not change projects, package references, or files.
 
 The browser explorer includes an interactive dependency graph with directional project, package, and framework nodes.
 Use `Fit graph` to frame the current graph, `Reset view` to recompute the layout, or click a node to focus its
@@ -322,6 +322,21 @@ Open the browser dependency explorer for the current directory or a supplied pro
 lasagna browse dependencies
 lasagna browse dependencies path/to/solution
 ```
+
+Replace a direct NuGet package reference with source code from a stored kit:
+
+```text
+lasagna deps replace Thing.Api --with-kit thing-api
+lasagna deps replace Thing.Api --with-kit thing-api --destination Generated --dry-run
+```
+
+The replacement selects the only project in the current directory by default. Use `--project path/to/project.csproj`
+when the project is elsewhere or the directory contains more than one project. Kit files are copied recursively into
+the project, namespaces and `using` references are rewritten to the project namespace by default, and matching direct
+`PackageReference` elements are removed from the project file. Use `--namespace` to choose a different target namespace,
+`--no-namespace-rewrite` to preserve the kit namespaces, `--overwrite` to allow destination collisions, or `--dry-run`
+to preview the complete operation. Shared `Directory.Build.props` and `Directory.Build.targets` package references are
+reported and left unchanged so a replacement cannot silently affect other projects.
 
 ### `browse`
 

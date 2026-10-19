@@ -16,8 +16,14 @@ internal static class DependencyPanel
 
     internal static class ActionIds
     {
+        internal const string Load = "dependencies.load";
         internal const string Scan = "dependencies.scan";
+        internal const string Graph = "dependencies.graph";
     }
+
+    private const string ReportHostId = "dependencies-report";
+    private const string GraphHostId = "dependencies-graph";
+    private const string GraphModalId = "dependency-graph-modal";
 
     internal static IHtmlContent Render(
         string scope,
@@ -33,7 +39,29 @@ internal static class DependencyPanel
                 panel.Add(PageFeedback.Render(message, isError));
 
             if (report is not null)
-                panel.Add(RenderReport(report));
+                panel.Add(RenderReport(scope, report));
+            else
+                panel.Add(RenderDeferredReport(scope));
+        });
+
+    private static IHtmlContent RenderDeferredReport(string scope)
+        => FluentHtml.Div(host =>
+        {
+            host.Id(ReportHostId)
+                .Class("lasagna-dependency-report");
+
+            host.Div(loader => loader
+                .Class("card", "shadow-sm", "mb-4")
+                .Heimdall(heimdall => heimdall
+                    .Load(ActionIds.Load)
+                    .Payload(new { Scope = scope })
+                    .Target($"#{ReportHostId}")
+                    .SwapInner())
+                .Div(body => body.Class("card-body", "d-flex", "align-items-center", "gap-3")
+                    .Add(Html.Tag("span", Html.Attr("class", "spinner-border spinner-border-sm"), Html.Attr("aria-hidden", "true")))
+                    .Div(copy => copy
+                        .H2(h2 => h2.Class("h5", "mb-1").Text("Scanning dependencies"))
+                        .P(p => p.Class("text-body-secondary", "mb-0").Text("Discovering projects, solutions, packages, and NuGet sources...")))));
         });
 
     private static IHtmlContent RenderScopeForm(string scope)
@@ -80,17 +108,44 @@ internal static class DependencyPanel
                 });
         });
 
-    private static IHtmlContent RenderReport(DependencyReport report)
+    private static IHtmlContent RenderReport(string scope, DependencyReport report)
+        => FluentHtml.Fragment(fragment =>
+        {
+            fragment.Add(RenderReportContent(scope, report));
+        });
+
+    private static IHtmlContent RenderReportContent(string scope, DependencyReport report)
         => FluentHtml.Fragment(fragment =>
         {
             fragment.Add(RenderSummary(report));
             fragment.Add(RenderCoverage(report));
             fragment.Add(RenderSources(report));
-            fragment.Add(RenderGraph(report));
+            fragment.Add(RenderDeferredGraph(scope));
             fragment.Add(RenderTree(report));
 
             if (report.Issues.Count > 0)
                 fragment.Add(RenderIssues(report));
+        });
+
+    private static IHtmlContent RenderDeferredGraph(string scope)
+        => FluentHtml.Div(host =>
+        {
+            host.Id(GraphHostId)
+                .Class("lasagna-dependency-graph-host", "mb-4");
+
+            host.Div(loader => loader
+                .Class("card", "shadow-sm")
+                .Heimdall(heimdall => heimdall
+                    .Visible(ActionIds.Graph)
+                    .VisibleOnce()
+                    .Payload(new { Scope = scope })
+                    .Target($"#{GraphHostId}")
+                    .SwapInner())
+                .Div(body => body.Class("card-body", "d-flex", "align-items-center", "gap-3")
+                    .Add(Html.Tag("span", Html.Attr("class", "spinner-border spinner-border-sm"), Html.Attr("aria-hidden", "true")))
+                    .Div(copy => copy
+                        .H2(h2 => h2.Class("h5", "mb-1").Text("Loading dependency graph"))
+                        .P(p => p.Class("text-body-secondary", "mb-0").Text("Preparing the interactive graph...")))));
         });
 
     private static IHtmlContent RenderCoverage(DependencyReport report)
@@ -182,48 +237,100 @@ internal static class DependencyPanel
     }
 
     private static IHtmlContent RenderGraph(DependencyReport report)
-        => FluentHtml.Article(article =>
+    {
+        if (report.Nodes.Count == 0)
         {
-            article.Class("card", "shadow-sm", "mb-4")
-                .Header(header => header.Class("card-header", "d-flex", "justify-content-between", "align-items-baseline", "gap-3")
-                    .H2(h2 => h2.Class("h4", "mb-0").Text("Dependency graph"))
-                    .Add(Html.Tag("small", Html.Attr("class", "text-body-secondary"), Html.Text("click a node to focus"))))
-                .Div(body =>
-                {
-                    body.Class("card-body", "p-0")
-                        .Div(shell =>
-                        {
-                            shell.Class("lasagna-dependency-graph-shell")
-                                .Attr("data-dependency-graph-shell", "true")
-                                .Div(toolbar => toolbar.Class("lasagna-dependency-graph__toolbar", "d-flex", "align-items-center", "gap-2", "flex-wrap")
-                                    .Button(button => button
-                                        .Type("button")
-                                        .Class("btn", "btn-sm", "btn-outline-secondary")
-                                        .Attr("data-dependency-graph-action", "fit")
-                                        .Text("Fit graph"))
-                                    .Button(button => button
-                                        .Type("button")
-                                        .Class("btn", "btn-sm", "btn-outline-secondary")
-                                        .Attr("data-dependency-graph-action", "reset")
-                                        .Text("Reset view"))
-                                    .Div(legend => legend.Class("lasagna-dependency-graph__legend", "d-flex", "align-items-center", "gap-3", "flex-wrap")
-                                        .Add(GraphLegendItem("project", "Project"))
-                                        .Add(GraphLegendItem("package", "Package"))
-                                        .Add(GraphLegendItem("framework", "Framework"))))
-                                .Div(canvas => canvas
-                                    .Id("dependency-graph-canvas")
-                                    .Class("lasagna-dependency-graph__canvas")
-                                    .Attr("data-dependency-graph", SerializeGraph(report))
-                                    .Attr("role", "application")
-                                    .Attr("aria-label", "Interactive dependency graph")
-                                    .Text("Loading dependency graph..."))
-                                .Div(selection => selection
-                                    .Id("dependency-graph-selection")
-                                    .Class("lasagna-dependency-graph__selection", "small", "text-body-secondary")
-                                    .Attr("aria-live", "polite")
-                                    .Text("Click a node to inspect its dependencies."));
-                });
+            return FluentHtml.Article(article => article
+                .Class("card", "shadow-sm", "mb-4")
+                .Div(body => body.Class("card-body")
+                    .H2(h2 => h2.Class("h4", "mb-2").Text("Dependency graph"))
+                    .P(p => p.Class("text-body-secondary", "mb-0")
+                        .Text("No dependency nodes were found in this scope."))));
+        }
+
+        return FluentHtml.Fragment(fragment =>
+        {
+            fragment.Add(FluentHtml.Article(article =>
+                article.Class("card", "shadow-sm", "mb-4")
+                    .Div(body => body.Class("card-body", "d-flex", "align-items-center", "justify-content-between", "gap-3", "flex-wrap")
+                        .Div(copy => copy
+                            .H2(h2 => h2.Class("h4", "mb-1").Text("Dependency graph"))
+                            .P(p => p.Class("text-body-secondary", "mb-0")
+                                .Text("Open the graph in a full-screen workspace to pan, zoom, and inspect dependencies.")))
+                        .Button(button => button
+                            .Type("button")
+                            .Class("btn", "btn-primary")
+                            .CommandFor(GraphModalId)
+                            .Command(Html.CommandType.show_modal)
+                            .Text("Open full-screen graph")))));
+
+            fragment.Add(FluentHtml.Tag("dialog", dialog =>
+            {
+                dialog.Id(GraphModalId)
+                    .Class("lasagna-dependency-graph-modal")
+                    .Attr("data-dependency-graph-modal", "true")
+                    .Aria("labelledby", $"{GraphModalId}-title")
+                    .Div(content => content.Class("lasagna-dependency-graph-modal__content")
+                        .Header(header => header.Class("lasagna-dependency-graph-modal__header", "d-flex", "align-items-center", "justify-content-between", "gap-3")
+                            .H2(h2 => h2
+                                .Id($"{GraphModalId}-title")
+                                .Class("h4", "mb-0")
+                                .Text("Dependency graph"))
+                            .Button(button => button
+                                .Type("button")
+                                .Class("btn", "btn-outline-secondary")
+                                .CommandFor(GraphModalId)
+                                .Command(Html.CommandType.close)
+                                .Text("Close")))
+                        .Div(body => body
+                            .Class("lasagna-dependency-graph-modal__body")
+                            .Add(RenderGraphShell(report))));
+            }));
         });
+    }
+
+    private static IHtmlContent RenderGraphShell(DependencyReport report)
+        => FluentHtml.Div(shell =>
+        {
+            shell.Class("lasagna-dependency-graph-shell")
+                .Attr("data-dependency-graph-shell", "true")
+                .Div(toolbar => toolbar.Class("lasagna-dependency-graph__toolbar", "d-flex", "align-items-center", "gap-2", "flex-wrap")
+                    .Button(button => button
+                        .Type("button")
+                        .Class("btn", "btn-sm", "btn-outline-secondary")
+                        .Attr("data-dependency-graph-action", "fit")
+                        .Disabled(report.Nodes.Count == 0)
+                        .Text("Fit graph"))
+                    .Button(button => button
+                        .Type("button")
+                        .Class("btn", "btn-sm", "btn-outline-secondary")
+                        .Attr("data-dependency-graph-action", "reset")
+                        .Disabled(report.Nodes.Count == 0)
+                        .Text("Reset view"))
+                    .Button(button => button
+                        .Type("button")
+                        .Class("btn", "btn-sm", "btn-outline-secondary")
+                        .Attr("data-dependency-graph-action", "download")
+                        .Attr("aria-label", "Download dependency graph as PNG")
+                        .Attr("title", "Download graph as PNG")
+                        .Disabled(report.Nodes.Count == 0)
+                        .Text("Download PNG"))
+                    .Div(legend => legend.Class("lasagna-dependency-graph__legend", "d-flex", "align-items-center", "gap-3", "flex-wrap")
+                        .Add(GraphLegendItem("project", "Project"))
+                        .Add(GraphLegendItem("package", "Package"))
+                        .Add(GraphLegendItem("framework", "Framework"))))
+                .Div(canvas => canvas
+                    .Id("dependency-graph-canvas")
+                    .Class("lasagna-dependency-graph__canvas")
+                    .Attr("data-dependency-graph", SerializeGraph(report))
+                    .Attr("role", "application")
+                    .Attr("aria-label", "Interactive dependency graph")
+                    .Text("Loading dependency graph..."))
+                .Div(selection => selection
+                    .Id("dependency-graph-selection")
+                    .Class("lasagna-dependency-graph__selection", "small", "text-body-secondary")
+                    .Attr("aria-live", "polite")
+                    .Text("Click a node to inspect its dependencies."));
         });
 
     private static IHtmlContent GraphLegendItem(string kind, string label)
@@ -441,21 +548,64 @@ internal static class DependencyPanel
     };
 
     [ContentInvocation("scan")]
-    public static IHtmlContent Scan([FromForm] DependencyScopePayload payload)
+    public static IHtmlContent Scan([ContentPayload] DependencyScopePayload payload)
     {
         try
         {
             var scope = string.IsNullOrWhiteSpace(payload.Scope) ? "." : payload.Scope;
-            return Render(scope, DependencyAnalyzer.BuildReport(scope));
+            return Render(scope, DependencyReportCache.BuildFresh(scope));
         }
         catch (Exception exception) when (exception is
             ArgumentException or
             DirectoryNotFoundException or
             FileNotFoundException or
             IOException or
-            UnauthorizedAccessException)
+            UnauthorizedAccessException or
+            System.Xml.XmlException)
         {
             return Render(payload.Scope, message: exception.Message, isError: true);
+        }
+    }
+
+    [ContentInvocation("load")]
+    public static IHtmlContent Load([ContentPayload] DependencyScopePayload payload)
+    {
+        try
+        {
+            var scope = string.IsNullOrWhiteSpace(payload.Scope) ? "." : payload.Scope;
+            return RenderReportContent(scope, DependencyReportCache.BuildFresh(scope));
+        }
+        catch (Exception exception) when (exception is
+            ArgumentException or
+            DirectoryNotFoundException or
+            FileNotFoundException or
+            IOException or
+            UnauthorizedAccessException or
+            System.Xml.XmlException)
+        {
+            return PageFeedback.Render(exception.Message, isError: true);
+        }
+    }
+
+    [ContentInvocation("graph")]
+    public static IHtmlContent Graph([ContentPayload] DependencyScopePayload payload)
+    {
+        try
+        {
+            var scope = string.IsNullOrWhiteSpace(payload.Scope) ? "." : payload.Scope;
+            return RenderGraph(DependencyReportCache.GetOrBuild(scope));
+        }
+        catch (Exception exception) when (exception is
+            ArgumentException or
+            DirectoryNotFoundException or
+            FileNotFoundException or
+            IOException or
+            UnauthorizedAccessException or
+            System.Xml.XmlException)
+        {
+            return FluentHtml.Div(error => error
+                .Class("card", "shadow-sm")
+                .Add(PageFeedback.Render(exception.Message, isError: true)));
         }
     }
 
