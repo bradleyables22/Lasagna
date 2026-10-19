@@ -51,7 +51,6 @@ internal static class LocalWebHost
 		{
 			FileProvider = new CompositeFileProvider(staticFileProviders)
 		});
-		app.MapStaticAssets();
 		app.UseHeimdall();
 
 		app.MapGet("/files/kit/{kit}/{**path}", (string kit, string? path) =>
