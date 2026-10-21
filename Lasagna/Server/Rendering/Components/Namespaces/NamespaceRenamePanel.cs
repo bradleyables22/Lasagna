@@ -135,6 +135,7 @@ internal static class NamespaceRenamePanel
                         .Div(summary => summary.Class("row", "g-3", "mb-4")
                             .Add(SummaryStat("From", plan.SourceNamespace))
                             .Add(SummaryStat("To", plan.TargetNamespace))
+                            .Add(SummaryStat("Resolved scope", plan.RootPath))
                             .Add(SummaryStat("Files scanned", plan.Files.Count.ToString()))
                             .Add(SummaryStat("Mappings", plan.ReferencesRewritten.ToString())));
 

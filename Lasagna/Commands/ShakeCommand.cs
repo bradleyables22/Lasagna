@@ -13,12 +13,8 @@ internal sealed class ShakeCommand : LasagnaCommand<ShakeCommand.Settings>
         [Description("The directory to scan recursively. Defaults to the current working directory.")]
         public string Scope { get; init; } = ".";
 
-        [CommandOption("--project <PATH>")]
-        [Description("The .csproj to build after applying removals, or a directory containing exactly one project.")]
-        public string? Project { get; init; }
-
         [CommandOption("--apply")]
-        [Description("Remove only high-confidence unused local C# files, then build-validate the result.")]
+        [Description("Remove only high-confidence unused local C# files. No build is run.")]
         public bool Apply { get; init; }
 
         [CommandOption("--dry-run")]
@@ -31,7 +27,7 @@ internal sealed class ShakeCommand : LasagnaCommand<ShakeCommand.Settings>
         if (settings.Apply && settings.DryRun)
             throw new InvalidOperationException("Use either --apply or --dry-run, not both.");
 
-        var plan = ShakeAnalyzer.BuildPlan(settings.Scope, settings.Project);
+        var plan = ShakeAnalyzer.BuildPlan(settings.Scope);
         WriteSummary(plan, settings.Apply);
         WriteEvidence(plan);
 
@@ -45,10 +41,7 @@ internal sealed class ShakeCommand : LasagnaCommand<ShakeCommand.Settings>
         var result = ShakeAnalyzer.Apply(plan);
         ConsoleUi.WriteSuccess(
             $"Removed {result.FilesRemoved} unused source file{(result.FilesRemoved == 1 ? string.Empty : "s")}. " +
-            "The project build passed and the cleanup was kept.");
-
-        if (!string.IsNullOrWhiteSpace(result.BuildOutput))
-            Console.WriteLine(result.BuildOutput.TrimEnd());
+            "No build was run.");
 
         return 0;
     }
@@ -58,7 +51,6 @@ internal sealed class ShakeCommand : LasagnaCommand<ShakeCommand.Settings>
         ConsoleUi.WriteSummary(
             applying ? "Leaf shake" : "Leaf shake preview",
             ("Scope", plan.RootPath),
-            ("Build project", plan.BuildProjectPath ?? "not identified"),
             ("C# files scanned", plan.FilesScanned.ToString()),
             ("Types scanned", plan.TypesScanned.ToString()),
             ("Removable files", plan.RemovableFiles.Count.ToString()),

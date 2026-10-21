@@ -171,8 +171,8 @@
             layout: {
                 name: "breadthfirst",
                 directed: true,
-                padding: 32,
-                spacingFactor: 1.18,
+                padding: 16,
+                spacingFactor: 0.72,
                 avoidOverlap: true,
                 animate: false
             }
@@ -180,6 +180,9 @@
 
         const shell = canvas.closest("[data-dependency-graph-shell]");
         const selection = shell?.querySelector("[data-dependency-graph-selection]");
+        const filterInputs = shell
+            ? Array.from(shell.querySelectorAll("[data-dependency-graph-filter]"))
+            : [];
 
         const clearSelection = () => {
             cy.elements().removeClass("is-focused is-connected is-dimmed");
@@ -198,19 +201,72 @@
             if (selection) {
                 const data = node.data();
                 const version = data.version ? ` ${data.version}` : "";
-                const outgoing = node.outgoers("node").length;
-                const incoming = node.incomers("node").length;
+                const outgoing = node.outgoers("node").filter(element => element.visible()).length;
+                const incoming = node.incomers("node").filter(element => element.visible()).length;
                 selection.textContent = `${data.name}${version} · ${data.kind} · ${incoming} incoming · ${outgoing} outgoing`;
             }
         };
 
+        const visibleElements = () => cy.elements().filter(element => element.visible());
+
         const fit = () => {
             cy.resize();
-            cy.fit(cy.elements(), 32);
+            const elements = visibleElements();
+            if (elements.length > 0) {
+                cy.fit(elements, 16);
+            }
         };
 
         const resize = () => {
             cy.resize();
+        };
+
+        const runLayout = () => {
+            cy.layout({
+                name: "breadthfirst",
+                eles: visibleElements(),
+                directed: true,
+                padding: 16,
+                spacingFactor: 0.72,
+                avoidOverlap: true,
+                animate: false
+            }).run();
+        };
+
+        const applyFilters = () => {
+            const showIndirect = filterInputs
+                .find(input => input.dataset.dependencyGraphFilter === "indirect")
+                ?.checked ?? false;
+            const showFramework = filterInputs
+                .find(input => input.dataset.dependencyGraphFilter === "framework")
+                ?.checked ?? true;
+
+            cy.nodes().forEach(node => {
+                const kind = node.data("kind");
+                const isIndirectPackage = kind === "Package" && node.data("direct") !== true;
+                const isFramework = kind === "Framework";
+                const visible = (!isIndirectPackage || showIndirect) &&
+                    (!isFramework || showFramework);
+
+                if (visible) {
+                    node.show();
+                } else {
+                    node.hide();
+                }
+            });
+
+            cy.edges().forEach(edge => {
+                const visible = edge.source().visible() && edge.target().visible();
+                if (visible) {
+                    edge.show();
+                } else {
+                    edge.hide();
+                }
+            });
+
+            clearSelection();
+            runLayout();
+            fit();
         };
 
         const download = () => {
@@ -254,19 +310,18 @@
                 fit();
             } else if (action.dataset.dependencyGraphAction === "reset") {
                 clearSelection();
-                cy.layout({
-                    name: "breadthfirst",
-                    directed: true,
-                    padding: 32,
-                    spacingFactor: 1.18,
-                    avoidOverlap: true,
-                    animate: false
-                }).run();
+                runLayout();
                 fit();
             } else if (action.dataset.dependencyGraphAction === "download") {
                 download();
             }
         });
+
+        filterInputs.forEach(input => {
+            input.addEventListener("change", applyFilters);
+        });
+
+        applyFilters();
 
         if (typeof window.ResizeObserver === "function") {
             new ResizeObserver(() => {

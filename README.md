@@ -309,16 +309,20 @@ lasagna shake path/to/injected/library
 
 The preview prints the declaration for every candidate plus the local semantic references and indirect-use hints that
 protect files from removal. Only complete `.cs` files whose top-level types have no local references and no safety
-indicators are eligible. Public, partial, attributed, entry-point, or indirectly referenced code is kept for review.
-Use `--project` when the build project cannot be inferred, and use `--apply` only after reviewing the evidence:
+indicators are eligible. Public, partial, attributed, polymorphic, entry-point, or indirectly referenced code is kept
+for review.
+Use `--apply` only after reviewing the evidence:
 
 ```text
-lasagna shake path/to/injected/library --project ClaimsApi.csproj --dry-run
-lasagna shake path/to/injected/library --project ClaimsApi.csproj --apply
+lasagna shake path/to/injected/library --dry-run
+lasagna shake path/to/injected/library --apply
 ```
 
 Applying a shake requires confirmation in the browser. The CLI requires `--apply`, removes only the previewed
-candidates, and builds the selected project afterward. If that build fails, the removed files are restored.
+candidates, and deletes them directly without building or restoring files. The browser also provides a confirmation
+action for removing an individual candidate after reviewing its evidence. Review items show potential indirect-use
+counts and can be explicitly approved for deletion. Results are grouped into nested directory trees; a directory
+action is offered only when every descendant is eligible and the directory contains no files outside the shake results.
 
 ### `deps`
 
@@ -339,8 +343,10 @@ reported as local folders when they can be resolved; credentials and secret valu
 the browser explorer are read-only and do not change projects, package references, or files.
 
 The browser explorer includes an interactive dependency graph with directional project, package, and framework nodes.
-Use `Fit graph` to frame the current graph, `Reset view` to recompute the layout, or click a node to focus its
-incoming and outgoing relationships. The dependency tree remains available below the graph for exact inspection.
+Indirect package nodes are hidden by default to keep the graph readable; use the `Indirect packages` and `Frameworks`
+filters when you need more detail. Use `Fit graph` to frame the current graph, `Reset view` to recompute the layout,
+or click a node to focus its incoming and outgoing relationships. The dependency tree remains available below the
+graph for exact inspection.
 
 Open the browser dependency explorer for the current directory or a supplied project/solution scope:
 
@@ -395,7 +401,7 @@ The local browser interface is a dark-mode, server-rendered UI:
 - `/kits` captures and lists directory-content kits.
 - `/kits/<name>` shows the files captured by a kit, lets you add or remove individual files, and allows the kit to be deleted.
 - `/namespace/rename` previews a recursive namespace rename with expandable Git-style diffs and requires an explicit confirmation before applying changes.
-- `/shake` previews unused local C# files recursively, displays declaration and reference evidence, and requires confirmation before removing candidates.
+- `/shake` previews unused local C# files recursively in nested directory trees, displays declaration and reference evidence, and places a read-only package-reference cleanup panel above the source results. Package candidates are only marked potentially unnecessary when no semantic or textual source evidence is found; analyzer, build, runtime, reflection, generated-code, and uncertain cases remain in review. File and directory removal requires confirmation.
 - `/dependencies` scans the launch directory recursively, shows nested project/package relationships, displays NuGet sources including local folder feeds, and reports diagnostics without changing files.
 - `/docs` contains the in-app command and workflow reference.
 

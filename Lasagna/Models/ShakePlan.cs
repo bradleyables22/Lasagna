@@ -38,7 +38,6 @@ internal sealed record ShakeFileReport(
 
 internal sealed record ShakePlan(
     string RootPath,
-    string? BuildProjectPath,
     int FilesScanned,
     int TypesScanned,
     IReadOnlyList<ShakeFileReport> Files,
@@ -62,6 +61,4 @@ internal sealed record ShakePlan(
 }
 
 internal sealed record ShakeApplyReport(
-    int FilesRemoved,
-    string? BuildProjectPath,
-    string BuildOutput);
+    int FilesRemoved);

@@ -256,7 +256,7 @@ internal static class DependencyPanel
                         .Div(copy => copy
                             .H2(h2 => h2.Class("h4", "mb-1").Text("Dependency graph"))
                             .P(p => p.Class("text-body-secondary", "mb-0")
-                                .Text("Open the graph in a full-screen workspace to pan, zoom, and inspect dependencies.")))
+                                .Text("Open the graph in a full-screen workspace to pan, zoom, filter, and inspect dependencies.")))
                         .Button(button => button
                             .Type("button")
                             .Class("btn", "btn-primary")
@@ -315,6 +315,28 @@ internal static class DependencyPanel
                         .Attr("title", "Download graph as PNG")
                         .Disabled(report.Nodes.Count == 0)
                         .Text("Download PNG"))
+                    .Div(filters => filters
+                        .Class("lasagna-dependency-graph__filters", "d-flex", "align-items-center", "gap-3", "flex-wrap")
+                        .Span(label => label.Class("small", "text-body-secondary").Text("Show"))
+                        .Div(field => field.Class("form-check", "form-switch", "mb-0")
+                            .Input(Html.InputType.checkbox, input => input
+                                .Id("dependency-graph-show-indirect")
+                                .Class("form-check-input")
+                                .Attr("data-dependency-graph-filter", "indirect"))
+                            .Label(label => label
+                                .For("dependency-graph-show-indirect")
+                                .Class("form-check-label", "small")
+                                .Text("Indirect packages")))
+                        .Div(field => field.Class("form-check", "form-switch", "mb-0")
+                            .Input(Html.InputType.checkbox, input => input
+                                .Id("dependency-graph-show-frameworks")
+                                .Class("form-check-input")
+                                .Attr("data-dependency-graph-filter", "framework")
+                                .Attr("checked", "checked"))
+                            .Label(label => label
+                                .For("dependency-graph-show-frameworks")
+                                .Class("form-check-label", "small")
+                                .Text("Frameworks"))))
                     .Div(legend => legend.Class("lasagna-dependency-graph__legend", "d-flex", "align-items-center", "gap-3", "flex-wrap")
                         .Add(GraphLegendItem("project", "Project"))
                         .Add(GraphLegendItem("package", "Package"))

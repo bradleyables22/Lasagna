@@ -29,6 +29,7 @@ internal static class ShakePage
                 .P(p => p.Class("text-body-secondary", "mb-0")
                     .Text("Find unused local C# source files recursively, inspect their reference evidence, and clean up only after confirmation.")));
 
+            main.Add(PackageReferencePanel.Render(scope));
             main.Add(ShakePanel.Render(scope, plan, message, isError));
         });
 }

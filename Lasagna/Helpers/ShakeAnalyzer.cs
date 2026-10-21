@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -26,7 +25,7 @@ internal static class ShakeAnalyzer
         [".cs", ".razor", ".cshtml", ".json", ".xml", ".config", ".yaml", ".yml"],
         StringComparer.OrdinalIgnoreCase);
 
-    public static ShakePlan BuildPlan(string scope = ".", string? projectPath = null)
+    public static ShakePlan BuildPlan(string scope = ".")
     {
         var rootPath = DirectoryManager.GetDirectoryPath(scope);
         var sourceFiles = EnumerateFiles(rootPath, ".cs").ToArray();
@@ -37,7 +36,6 @@ internal static class ShakeAnalyzer
         {
             return new ShakePlan(
                 rootPath,
-                ResolveBuildProject(rootPath, projectPath),
                 0,
                 0,
                 [],
@@ -93,7 +91,6 @@ internal static class ShakeAnalyzer
 
         return new ShakePlan(
             rootPath,
-            ResolveBuildProject(rootPath, projectPath),
             sourceFiles.Length,
             typeGroups.Count,
             reports,
@@ -104,79 +101,175 @@ internal static class ShakeAnalyzer
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        var files = plan.RemovableFiles
+        return ApplyFiles(plan, plan.RemovableFiles);
+    }
+
+    public static ShakeApplyReport ApplyFile(
+        ShakePlan plan,
+        string filePath,
+        bool approveReview = false)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var resolvedFilePath = Path.GetFullPath(filePath);
+        var candidate = plan.Files.FirstOrDefault(file =>
+            string.Equals(
+                Path.GetFullPath(file.FilePath),
+                resolvedFilePath,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (candidate is null ||
+            (candidate.Status != ShakeFileStatus.Removable &&
+                !(approveReview && candidate.Status == ShakeFileStatus.Review)))
+        {
+            throw new InvalidOperationException(
+                "The selected file is no longer an eligible removal candidate. Re-scan the scope and review the current evidence.");
+        }
+
+        return ApplyFiles(plan, [candidate]);
+    }
+
+    public static ShakeApplyReport ApplyDirectory(
+        ShakePlan plan,
+        string directoryPath,
+        bool approveReview)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
+
+        var rootPath = Path.GetFullPath(plan.RootPath);
+        var resolvedDirectory = Path.GetFullPath(directoryPath);
+
+        if (!Directory.Exists(resolvedDirectory))
+            throw new DirectoryNotFoundException(
+                $"The directory '{directoryPath}' was not found.");
+
+        if (!IsDescendantPath(rootPath, resolvedDirectory) ||
+            IsReparsePoint(new DirectoryInfo(resolvedDirectory)))
+        {
+            throw new InvalidOperationException(
+                "Only a child directory inside the selected shake scope can be removed.");
+        }
+
+        ValidateDirectoryTree(resolvedDirectory);
+
+        var filesOnDisk = EnumerateAllFiles(resolvedDirectory).ToArray();
+        var reports = plan.Files
+            .Where(file => IsDescendantPath(resolvedDirectory, Path.GetFullPath(file.FilePath)))
+            .ToArray();
+        var reportPaths = reports
+            .Select(file => Path.GetFullPath(file.FilePath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (filesOnDisk.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "The selected directory contains no files to remove.");
+        }
+
+        var unexpectedFiles = filesOnDisk
+            .Where(file => !reportPaths.Contains(Path.GetFullPath(file)))
+            .ToArray();
+
+        if (unexpectedFiles.Length > 0 || reports.Length != filesOnDisk.Length)
+        {
+            throw new InvalidOperationException(
+                "The selected directory contains files outside the shake results. " +
+                "Review and remove those files separately before deleting the directory.");
+        }
+
+        var disallowed = reports
+            .Where(file => file.Status != ShakeFileStatus.Removable &&
+                !(approveReview && file.Status == ShakeFileStatus.Review))
+            .ToArray();
+
+        if (disallowed.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"The selected directory contains {disallowed.Length} file{(disallowed.Length == 1 ? string.Empty : "s")} " +
+                "that are referenced or protected. Remove those files separately only after reviewing their evidence.");
+        }
+
+        return ApplyFiles(plan, reports, resolvedDirectory);
+    }
+
+    private static ShakeApplyReport ApplyFiles(
+        ShakePlan plan,
+        IEnumerable<ShakeFileReport> candidates,
+        string? directoryToRemove = null)
+    {
+        var files = candidates
             .Select(file => file.FilePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         if (files.Length == 0)
-            return new ShakeApplyReport(0, plan.BuildProjectPath, "No files were removed.");
+            return new ShakeApplyReport(0);
 
-        if (string.IsNullOrWhiteSpace(plan.BuildProjectPath))
+        foreach (var file in files)
+            File.Delete(file);
+
+        if (directoryToRemove is not null)
+            Directory.Delete(directoryToRemove, recursive: true);
+
+        return new ShakeApplyReport(files.Length);
+    }
+
+    private static bool IsDescendantPath(string rootPath, string path)
+    {
+        var relativePath = Path.GetRelativePath(rootPath, path);
+
+        return relativePath != "." &&
+               !Path.IsPathRooted(relativePath) &&
+               !relativePath.Equals("..", StringComparison.Ordinal) &&
+               !relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+               !relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    private static void ValidateDirectoryTree(string rootPath)
+    {
+        var directory = new DirectoryInfo(rootPath);
+
+        foreach (var file in directory.EnumerateFiles())
         {
-            throw new InvalidOperationException(
-                "A single .csproj could not be identified for build validation. " +
-                "Provide --project before applying the shake; no files were removed.");
+            if (IsReparsePoint(file))
+            {
+                throw new InvalidOperationException(
+                    $"The selected directory contains a linked file '{file.FullName}'.");
+            }
         }
 
-        var backups = files.ToDictionary(
-            path => path,
-            File.ReadAllBytes,
-            StringComparer.OrdinalIgnoreCase);
-
-        try
+        foreach (var child in directory.EnumerateDirectories())
         {
-            foreach (var file in files)
-                File.Delete(file);
+            if (IsReparsePoint(child))
+            {
+                throw new InvalidOperationException(
+                    $"The selected directory contains a linked directory '{child.FullName}'.");
+            }
 
-            var buildOutput = string.IsNullOrWhiteSpace(plan.BuildProjectPath)
-                ? "No project file was identified; the removed files were not build-validated."
-                : Build(plan.BuildProjectPath);
+            if (ExcludedDirectories.Contains(child.Name))
+            {
+                throw new InvalidOperationException(
+                    $"The selected directory contains an excluded build or tool directory '{child.FullName}'.");
+            }
 
-            return new ShakeApplyReport(
-                files.Length,
-                plan.BuildProjectPath,
-                buildOutput);
-        }
-        catch
-        {
-            foreach (var backup in backups)
-                File.WriteAllBytes(backup.Key, backup.Value);
-
-            throw;
+            ValidateDirectoryTree(child.FullName);
         }
     }
 
-    public static string? ResolveBuildProject(string rootPath, string? projectPath = null)
+    private static IEnumerable<string> EnumerateAllFiles(string rootPath)
     {
-        if (!string.IsNullOrWhiteSpace(projectPath))
+        var directory = new DirectoryInfo(rootPath);
+
+        foreach (var file in directory.EnumerateFiles())
+            yield return file.FullName;
+
+        foreach (var child in directory.EnumerateDirectories())
         {
-            var resolved = DirectoryManager.GetExistingPath(projectPath);
-            if (File.Exists(resolved))
-            {
-                if (!Path.GetExtension(resolved).Equals(
-                        ".csproj",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new ArgumentException(
-                        "The build target must be a .csproj file or a directory containing one project.",
-                        nameof(projectPath));
-                }
-
-                return Path.GetFullPath(resolved);
-            }
-
-            var selected = FindSingleProject(resolved);
-            if (selected is null)
-            {
-                throw new InvalidOperationException(
-                    $"Could not identify exactly one .csproj beneath '{projectPath}'.");
-            }
-
-            return selected;
+            foreach (var file in EnumerateAllFiles(child.FullName))
+                yield return file;
         }
-
-        return DirectoryManager.FindProjectFile(rootPath) ?? FindSingleProject(rootPath);
     }
 
     private static Dictionary<INamedTypeSymbol, TypeGroup> CollectTypes(
@@ -412,12 +505,13 @@ internal static class ShakeAnalyzer
                 group.IsPublicApi ||
                 group.IsPartial ||
                 group.HasAttributes ||
+                group.HasPolymorphicContract ||
                 group.IndirectHints.Count > 0))
         {
             return new ShakeFileReport(
                 filePath,
                 ShakeFileStatus.Review,
-                "No local semantic references were found, but the file has public, partial, attributed, or indirect-use indicators.",
+                "No local semantic references were found, but the file has public, partial, attributed, polymorphic, or indirect-use indicators.",
                 symbols);
         }
 
@@ -581,7 +675,7 @@ internal static class ShakeAnalyzer
     private static bool IsReparsePoint(FileSystemInfo entry)
         => entry.Attributes.HasFlag(FileAttributes.ReparsePoint);
 
-    private static IReadOnlyList<MetadataReference> GetMetadataReferences()
+    internal static IReadOnlyList<MetadataReference> GetMetadataReferences()
     {
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var trusted = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")?.ToString();
@@ -600,75 +694,6 @@ internal static class ShakeAnalyzer
         }
 
         return paths.Select(path => MetadataReference.CreateFromFile(path)).ToArray();
-    }
-
-    private static string? FindSingleProject(string rootPath)
-    {
-        var projects = EnumerateProjectFiles(rootPath).ToArray();
-        return projects.Length == 1 ? projects[0] : null;
-    }
-
-    private static IEnumerable<string> EnumerateProjectFiles(string rootPath)
-    {
-        var directory = new DirectoryInfo(rootPath);
-        if (!directory.Exists || IsReparsePoint(directory))
-            yield break;
-
-        foreach (var file in directory.EnumerateFiles("*.csproj"))
-            yield return file.FullName;
-
-        foreach (var child in directory.EnumerateDirectories())
-        {
-            if (ExcludedDirectories.Contains(child.Name) || IsReparsePoint(child))
-                continue;
-
-            foreach (var project in EnumerateProjectFiles(child.FullName))
-                yield return project;
-        }
-    }
-
-    private static string Build(string projectPath)
-    {
-        var startInfo = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = Path.GetDirectoryName(projectPath) ?? Directory.GetCurrentDirectory(),
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        startInfo.ArgumentList.Add("build");
-        startInfo.ArgumentList.Add(projectPath);
-        startInfo.ArgumentList.Add("--no-restore");
-        startInfo.ArgumentList.Add("--nologo");
-
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Could not start dotnet build after shake.");
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-
-        if (!process.WaitForExit(TimeSpan.FromMinutes(2)))
-        {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
-
-            throw new TimeoutException("The build did not finish within two minutes. Removed files were restored.");
-        }
-
-        var output = outputTask.GetAwaiter().GetResult() + errorTask.GetAwaiter().GetResult();
-        if (process.ExitCode != 0)
-        {
-            var details = output.Length > 4000 ? output[^4000..] : output;
-            throw new InvalidDataException(
-                $"The build failed after shake. Removed files were restored.{Environment.NewLine}{details}");
-        }
-
-        return output;
     }
 
     private sealed class TypeGroup(INamedTypeSymbol symbol)
@@ -698,6 +723,14 @@ internal static class ShakeAnalyzer
         internal bool HasAttributes => Parts.Any(part => part.HasAttributes);
 
         internal bool HasEntryPoint => Parts.Any(part => part.HasEntryPoint);
+
+        internal bool HasPolymorphicContract =>
+            Symbol.TypeKind == TypeKind.Class &&
+            (Symbol.AllInterfaces.Length > 0 ||
+             (Symbol.BaseType is not null &&
+              Symbol.BaseType.SpecialType is not SpecialType.System_Object and not SpecialType.System_ValueType) ||
+             Symbol.GetMembers().OfType<IMethodSymbol>().Any(method =>
+                 method.IsAbstract || method.IsOverride || method.IsVirtual));
     }
 
     private sealed record TypePart(
